@@ -43,7 +43,7 @@ target_brands = [
 popular_domains = [
     "google.com","youtube.com","facebook.com","amazon.com",
     "amazon.in","microsoft.com","apple.com",
-    "github.com","linkedin.com","wikipedia.org"
+    "github.com","linkedin.com","wikipedia.org","chatgpt.com"
 ]
 
 # ----------------------------
@@ -524,6 +524,11 @@ threatfox_db = load_threatfox()
 def analyze_message(message):
 
     score = 0
+    weak_score = 0
+    # LIMIT TOTAL STRUCTURAL IMPACT
+    structure_score = 0
+    #Brand Score 
+    brand_score = 0
     reasons = []
 
 
@@ -540,7 +545,7 @@ def analyze_message(message):
     # Keyword detection
     for word in suspicious_keywords:
         if word in text:
-            score += 20
+            weak_score += 10
             add_reason("Suspicious keyword detected: " + word)
 
     # Pattern detection
@@ -548,7 +553,7 @@ def analyze_message(message):
 
     for pattern in scam_patterns:
         if pattern in text:
-            score += 40
+            score += 25
             add_reason("Matched known scam pattern: " + pattern)
             pattern_matched = True
             break
@@ -558,7 +563,7 @@ def analyze_message(message):
         for pattern in scam_patterns:
             similarity = jaccard_similarity(text, pattern)
             if similarity > 0.3:
-                score += 30
+                score += 20
                 add_reason("Message similar to scam pattern: " + pattern)
                 break
 
@@ -568,7 +573,7 @@ def analyze_message(message):
 
     # URL Encoding Detection
     if re.search(r'%[0-9a-fA-F]{2}', message):
-        score += 30
+        score += 20
         add_reason("URL encoding detected (possible obfuscation)")
 
 
@@ -577,6 +582,26 @@ def analyze_message(message):
     
     print("\n[DEBUG] Processing message:", message)
     print("[DEBUG] Decoded message:", decoded_message)
+
+
+
+
+
+    # ----------------------------
+# CONTEXT-AWARE DETECTION (NEW)
+# ----------------------------
+
+# Detect phrases commonly used in phishing messages
+#     scam_context_phrases = [
+#         "send money", "click link", "verify now",
+#         "account blocked", "urgent action",
+#         "limited time", "claim now", "act now"
+#     ]
+
+#     for phrase in scam_context_phrases:
+#         if phrase in text:
+#             score += 15
+#             add_reason(f"Suspicious message context detected: '{phrase}'")
 
 
 
@@ -627,10 +652,44 @@ def analyze_message(message):
 
     # URL analysis
     for url in urls:
+        ip = None
+
 
         decoded_url = unquote(url)
         # if url redirected
         final_url, redirect_count = resolve_final_url(decoded_url)
+        
+
+
+
+
+
+        # ----------------------------
+# QUERY PARAMETER DETECTION (NEW)
+# ----------------------------
+
+        if "?" in final_url:
+            query_part = final_url.split("?")[1]
+
+    # Long query string
+            if len(query_part) > 30:
+                score += 10
+                add_reason("Long query parameters detected")
+
+    # Too many parameters
+            param_count = query_part.count("=")
+            if param_count >= 3:
+                score += 10
+                add_reason(f"Too many URL parameters ({param_count})")
+
+    # Suspicious parameter keywords
+            suspicious_params = ["token", "session", "auth", "key", "login", "verify"]
+
+            for param in suspicious_params:
+                if param in query_part:
+                    score += 10
+                    add_reason(f"Suspicious parameter detected: {param}")
+                    break
 
 
 
@@ -639,46 +698,8 @@ def analyze_message(message):
 # ----------------------------
 
         if final_url.startswith("http://"):
-            score += 10
+            weak_score += 10
             add_reason("Uses HTTP instead of HTTPS (less secure)")
-
-
-
-
-
-        if redirect_count >=1:
-            score += 20
-            add_reason("URL uses redirection (possible phishing)")
-
-
-        clean_url = final_url.rstrip("/")
-
-
-
-
-
-        # ----------------------------
-# REDIRECT ANALYSIS (SMART)
-# ----------------------------
-
-        print("[DEBUG] Redirect count:", redirect_count)
-
-# Multiple redirects = suspicious
-        if redirect_count >= 3:
-            score += 25
-            add_reason(f"Multiple redirects detected ({redirect_count})")
-
-        elif redirect_count == 2:
-            score += 15
-            add_reason("Double redirect detected")
-
-# Domain change detection
-        original_domain = tldextract.extract(decoded_url).registered_domain
-        final_domain = tldextract.extract(final_url).registered_domain
-
-        if original_domain != final_domain:
-            score += 20
-            add_reason("Redirect leads to different domain")
 
 
 
@@ -691,13 +712,8 @@ def analyze_message(message):
 
         digits = sum(c.isdigit() for c in final_url)
         if digits > 3:
-            score += 20
+            structure_score += 15
             add_reason(f"Too many numbers in URL ({digits})")
-
-
-
-
-        
 
 
 
@@ -711,9 +727,8 @@ def analyze_message(message):
         print("[DEBUG] URL Length:", url_length)
 
         if url_length > 60:
-            score += 25
+            structure_score += 15
             add_reason(f"Long URL detected ({url_length} characters)")
-
 
 
 
@@ -726,36 +741,12 @@ def analyze_message(message):
 
 # If too many dots → phishing pattern
         if dot_count >= 4:
-            score += 25
+            structure_score += 15
             add_reason(f"Too many dots in URL ({dot_count})")
 
 
 
 
-
-
-        # Google Safe Browsing
-        # if check_google_safe_browsing(final_url):
-        #     score += 50
-        #     add_reason("Google Safe Browsing flagged this URL as dangerous")
-
-        # PhishTank
-        if check_phishtank(final_url):
-            score += 50
-            add_reason("URL found in PhishTank phishing database")
-
-        # URLhaus (CSV ONLY)
-        if clean_url.rstrip("/") in urlhaus_db:
-            score += 50
-            add_reason("URL found in URLhaus malware database")
-        
-
-
-
-        # ThreatFox API (only if not found in DB)
-        # if domain_name in threatfox_db:
-            # score += 50
-            # add_reason("Domain found in ThreatFox database")
 
         # Domain extraction
         domain_info = tldextract.extract(final_url)
@@ -770,9 +761,213 @@ def analyze_message(message):
 
 
 
+        # Domain popularity
+        if domain_name not in popular_domains and suffix in suspicious_tlds:
+            weak_score += 10
+            add_reason("Domain not in popular domain list")
 
 
 
+
+
+        # ----------------------------
+# Skip trusted domains (CLEAN OUTPUT)
+# ----------------------------
+
+        # TRUSTED DOMAIN CHECK
+        if domain_name in popular_domains:
+            score -= 40
+            add_reason("Trusted domain detected")
+            continue   # skip further risky checks
+
+
+
+
+        # ----------------------------
+# SAFE DOMAIN KEYWORD CHECK (RULE 4)
+# ----------------------------
+
+        safe_keywords = ["github", "google", "youtube", "amazon", "microsoft"]
+
+        if any(safe in domain_name for safe in safe_keywords):
+            score -= 20
+            add_reason("Known safe service keyword detected")
+
+
+
+
+        
+        # ----------------------------
+# SUSPICIOUS TLD DETECTION (FIXED)
+# ----------------------------
+
+        tld = suffix.lower()
+
+        if any(tld.endswith(bad) for bad in suspicious_tlds):
+            score += 20
+            add_reason(f"Suspicious top-level domain (.{tld})")
+
+
+
+
+        # ----------------------------
+# ENTROPY DETECTION (FIXED)
+# ----------------------------
+
+# Ignore very small domains
+        if len(domain) > 5:
+
+            entropy = calculate_entropy(domain)
+            print("[DEBUG] Entropy:", entropy)  # DEBUG
+
+    # Lower threshold (IMPORTANT)
+            if entropy > 3.0:
+                structure_score += 20
+                add_reason(f"High entropy domain detected ({round(entropy,2)})")
+
+
+
+
+        
+        # ----------------------------
+# Improved Hyphen Detection (STRONG)
+# ----------------------------
+
+# Count hyphens only in domain
+        if domain.count("-") > 2:
+            score += 20
+            add_reason("Too many hyphens in domain")
+
+
+
+
+        # ----------------------------
+# Improved Subdomain Detection (STRONG)
+# ----------------------------
+
+        subdomain = domain_info.subdomain
+
+        if subdomain:
+            levels = subdomain.split(".")
+
+            if len(levels) >= 3:
+                score += 20
+                add_reason("Too many subdomains (phishing pattern)")
+
+
+        
+
+        # ----------------------------
+# Suspicious URL Path Detection (NEW)
+# ----------------------------
+
+        suspicious_path_words = ["login", "verify", "update", "account", "bank", "secure"]
+
+        # ----------------------------
+# SUSPICIOUS PATH DETECTION (IMPROVED)
+# ----------------------------
+        path_hits = 0
+
+        for word in suspicious_path_words:
+            if word in final_url:
+                path_hits += 1
+
+        path_score = 0
+
+        if path_hits > 0:
+            path_score += min(20, 10 * path_hits)
+
+        if suffix in suspicious_tlds:
+            path_score += 20
+
+# Combination bonus (only once)
+        if path_hits > 0 and suffix in suspicious_tlds:
+            path_score += 10
+
+# LIMIT PATH IMPACT
+        if path_score > 30:
+            path_score = 30
+
+        score += path_score
+
+        
+
+
+
+
+
+        # ----------------------------
+# DEEP PATH STRUCTURE DETECTION (NEW)
+# ----------------------------
+
+# Count number of slashes in URL path
+        path_depth = final_url.count("/")
+
+# Subtract 2 (for https:// or http://)
+        if path_depth > 5:
+            structure_score += 10
+            add_reason(f"Deep URL path structure detected ({path_depth} levels)")
+
+
+
+
+
+
+        
+
+        # ----------------------------
+# COMBINATION SIGNAL BOOST (RULE 3)
+# ----------------------------
+
+# If both suspicious path AND suspicious TLD → strong phishing pattern
+        # if path_hits > 0 and suffix in suspicious_tlds:
+        #     score += 10
+        #     add_reason("Combination: Suspicious path + suspicious TLD")
+
+
+
+        # ----------------------------
+# REDIRECT ANALYSIS (FIXED)
+# ----------------------------
+
+        print("[DEBUG] Redirect count:", redirect_count)
+
+        if redirect_count >= 3:
+            score += 25
+            add_reason(f"Multiple redirects detected ({redirect_count})")
+
+        elif redirect_count == 2:
+            score += 15
+            add_reason("Double redirect detected")
+
+        elif redirect_count == 1:
+            score += 10
+            add_reason("Single redirect detected")
+
+
+
+
+
+# Domain change detection
+        original_domain = tldextract.extract(decoded_url).registered_domain
+        final_domain = tldextract.extract(final_url).registered_domain
+
+        if original_domain != final_domain:
+            score += 20
+            add_reason("Redirect leads to different domain")
+
+
+
+        
+        # ----------------------------
+# SHORT URL DETECTION (FINAL)
+# ----------------------------
+
+        if domain_name in short_url_services:
+            score += 20
+            add_reason("Shortened URL detected")
+
+        
 
 
         # ----------------------------
@@ -785,7 +980,7 @@ def analyze_message(message):
 
     # Detect brand in URL but NOT actual domain
             if brand in full_url and brand not in domain.lower():
-                score += 35
+                brand_score += 35
                 add_reason(f"Brand impersonation detected: {brand}")
                 break
 
@@ -806,156 +1001,66 @@ def analyze_message(message):
                 distance = levenshtein_distance(part, brand)
 
                 if 0 < distance <= 2 and abs(len(part) - len(brand)) <= 1:
-                    score += 40
+                    brand_score += 40
                     add_reason(f"Possible typosquatting of brand: {brand}")
                     break
-
-
-
-
-
-
-
-
-        # ----------------------------
-# SUSPICIOUS TLD DETECTION (FIXED)
-# ----------------------------
-
-        tld = suffix.lower()
-
-        if any(tld.endswith(bad) for bad in suspicious_tlds):
-            score += 25
-            add_reason(f"Suspicious top-level domain (.{tld})")
-
-
-
-
-
-
-
-        # ----------------------------
-# ENTROPY DETECTION (FIXED)
-# ----------------------------
-
-# Ignore very small domains
-        if len(domain) > 5:
-
-            entropy = calculate_entropy(domain)
-            print("[DEBUG] Entropy:", entropy)  # DEBUG
-
-    # Lower threshold (IMPORTANT)
-            if entropy > 3.0:
-                score += 30
-                add_reason(f"High entropy domain detected ({round(entropy,2)})")
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-
-
-        # ----------------------------
-# Skip trusted domains (CLEAN OUTPUT)
-# ----------------------------
-
-        if domain_name in popular_domains:
-            continue
-
-
-
-        # ----------------------------
-# Suspicious URL Path Detection (NEW)
-# ----------------------------
-
-        suspicious_path_words = ["login", "verify", "update", "account", "bank", "secure"]
-
-        # ----------------------------
-# SUSPICIOUS PATH DETECTION (IMPROVED)
-# ----------------------------
-        path_hits = 0
-
-        for word in suspicious_path_words:
-            if word in final_url:
-                path_hits += 1
-
-        if path_hits > 0:
-            score += 10 * path_hits
-            add_reason(f"Suspicious URL path contains {path_hits} risky keywords")
-
-
-
-        # ----------------------------
-# NOW DO API CALLS (ONLY FOR SUSPICIOUS)
-# ----------------------------
-
-        if check_google_safe_browsing(final_url):
-            score += 50
-            add_reason("Google Safe Browsing flagged this URL as dangerous")
-
-
-
-
-
-
-
-        # ----------------------------
-# SHORT URL DETECTION (FINAL)
-# ----------------------------
-
-        if domain_name in short_url_services:
-            score += 25
-            add_reason("Shortened URL detected")
-
-    # Short URL ALWAYS risky
-            if redirect_count >= 1:
-                score += 15
-                add_reason("Short URL performs redirection")
-
-        
         
 
 
 
         # ----------------------------
-# Strong IP Detection
+# VISUAL SIMILARITY DETECTION (NEW)
+# ----------------------------
+
+# Common character replacements used in phishing
+        char_map = {
+            '0': 'o',
+            '1': 'l',
+            '3': 'e',
+            '@': 'a',
+            '$': 's'
+        }
+
+# Normalize domain
+        normalized_domain = domain
+        for fake, real in char_map.items():
+            normalized_domain = normalized_domain.replace(fake, real)
+
+# Check if it mimics a brand visually
+        for brand in target_brands:
+            if brand in normalized_domain and brand not in domain:
+                brand_score += 15
+                add_reason(f"Visual similarity attack detected (looks like {brand})")
+                break
+
+
+
+
+
+
+        # ----------------------------
+# IP ADDRESS DETECTION (IMPROVED)
 # ----------------------------
 
         ip_pattern = r'\b(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})(\.(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}\b'
 
-        if re.search(ip_pattern, final_url):
-            if "URL uses IP address instead of domain" not in reasons:
+        match = re.search(ip_pattern, final_url)
+
+        if match:
+            ip = match.group()
+
+    # Check for private IP ranges
+            if ip.startswith("192.168") or ip.startswith("10.") or ip.startswith("172."):
+                weak_score += 10
+                add_reason(f"Private IP used in URL ({ip})")
+            else:
                 score += 40
-                add_reason("URL uses IP address instead of domain")
-
-
-
-
-
-
-
-        # ThreatFox API (only if not found in DB)
-        if domain_name in threatfox_db or final_url in threatfox_db:
-            score += 50
-            add_reason("Found in ThreatFox database")
-
-
-
+                add_reason(f"Public IP address used in URL ({ip})")
         
-        # ----------------------------
-# ----------------------------
-# OpenPhish Check (FIXED)
-# ----------------------------
 
-# Normalize URL
+
+
+        # Normalize URL
         clean_url = final_url.lower()
 
 # Remove protocol
@@ -964,131 +1069,169 @@ def analyze_message(message):
 # Remove trailing slash
         clean_url = clean_url.rstrip("/")
 
+
+
+
+
+
+
+        # DATABASE CHECKS (STRONG) DB 
+
+        # PhishTank
+        if check_phishtank(final_url):
+            score += 100
+            add_reason("URL found in PhishTank phishing database")
+
+        # URLhaus (CSV ONLY)
+        if clean_url.rstrip("/") in urlhaus_db:
+            score += 100
+            add_reason("URL found in URLhaus malware database")
+
+
+        # ----------------------------
+# ----------------------------
+# OpenPhish Check (FIXED)
+# ----------------------------
+
+
+
 # Extract only domain
         domain_only = clean_url.split("/")[0]
 
 # Check multiple formats
         if (clean_url in openphish_db or domain_only in openphish_db):
-            score += 50
+            score += 100
             add_reason("URL found in OpenPhish phishing database")
+
+
+
+        if score >= 100:
+            score = 100
+            break 
+
+
+
+
+
+        # ----------------------------
+# NOW DO API CALLS (ONLY FOR SUSPICIOUS)
+# ----------------------------
+
+        if score >= 30:
+            if check_google_safe_browsing(final_url):
+                score += 100
+                add_reason("Google Safe Browsing flagged this URL as dangerous")
+                score = 100
+                break
+
+
+
+
+
+
+        # ThreatFox API (only if not found in DB)
+        if score >= 30:
+            if domain_name in threatfox_db or final_url in threatfox_db:
+                score += 100
+                add_reason("Found in ThreatFox database")
+                score = 100
+                break
+
+
+
+        
+        
 
 
 
 
         # Get IP from domain DNS CHECK
-        try:
-            ip = dns.resolver.resolve(domain_name, "A")[0].to_text()
-        except:
-            ip = None
+            if score >= 30:
+                try:
+                    ip = dns.resolver.resolve(domain_name, "A")[0].to_text()
+                except:
+                    ip = None
 
     # Only flag if domain looks real
             if "." in domain_name:
-                score += 20
+                score += 15
                 add_reason("Domain failed DNS resolution")
         
 
         is_bad = False
         score_ip = 0
-        if ip:
+        if ip is not None:
             is_bad, score_ip = check_abuseipdb(ip)
             if is_bad:
                 score += 40
                 add_reason(f"IP reported malicious (AbuseIPDB score: {score_ip})")
 
 
+    
+
         
 
-
-
-
-
-
-
-
         # ----------------------------
-# ENTROPY DETECTION (FIXED)
+# DOMAIN AGE DETECTION (SMART)
+# ----------------------------
+        if score >= 30:
+            age = get_domain_age(domain_name)
+
+            if age is not None:
+
+                if age < 7:
+                    score += 25
+                    add_reason("Domain extremely new (<7 days)")
+
+                elif age < 30:
+                    score += 20
+                    add_reason("Domain recently registered (<30 days)")
+
+                elif age < 90:
+                    weak_score += 10
+                    add_reason("Domain relatively new (<90 days)")
+
+
+
+
+                
+        
+        # ----------------------------
+# MULTI-SIGNAL INTELLIGENCE BOOST (NEW)
 # ----------------------------
 
-# Ignore very small domains
-        if len(domain) > 5:
+# Count strong phishing signals
+        strong_signal_count = 0
 
-            entropy = calculate_entropy(domain)
-            print("[DEBUG] Entropy:", entropy)  # DEBUG
+        strong_keywords = [
+            "Suspicious top-level domain",
+            "High entropy",
+            "Brand impersonation",
+            "Possible typosquatting",
+            "Public IP address",
+            "Shortened URL"
+        ]
 
-    # Lower threshold (IMPORTANT)
-            if entropy > 3.0:
-                score += 30
-                add_reason(f"High entropy domain detected ({round(entropy,2)})")
+# Check how many strong signals already triggered
+        for reason in reasons:
+            for keyword in strong_keywords:
+                if keyword in reason:
+                    strong_signal_count += 1
+                    break
 
-        # Domain popularity
-        if domain_name not in popular_domains:
-            score += 10
-            add_reason("Domain not in popular domain list")
+# If multiple strong signals → boost score
+        if strong_signal_count >= 2 and score < 70:
+            score += 15
+            add_reason("Multiple strong phishing indicators detected")
 
-        # Brand impersonation
-        for brand in target_brands:
-            if brand in domain.lower() and domain.lower() != brand:
-                score += 35
-                add_reason("Brand impersonation detected: " + brand)
 
-        # Domain age
-        age = get_domain_age(domain_name)
-        if age is not None and age < 30:
-            score += 40
-            add_reason("Domain very new (<30 days)")
 
-        if f"Detected domain: {domain_name}" not in reasons:
-            add_reason("Detected domain: " + domain_name)
+
 
         # ML detection
         if ml_detect(final_url) == 1:
-            score += 40
-            add_reason("ML model detected phishing")
-
-
-
-
-        
-
-
-
-
-        # ----------------------------
-# DOT COUNT DETECTION (NEW)
-# ----------------------------
-        dot_count = final_url.count(".")
-
-# If too many dots → phishing pattern
-        if dot_count >= 4:
-            score += 25
-            add_reason(f"Too many dots in URL ({dot_count})")
-
-
-
-
-        # ----------------------------
-# Improved Subdomain Detection (STRONG)
-# ----------------------------
-
-        subdomain = domain_info.subdomain
-
-        if subdomain:
-            levels = subdomain.split(".")
-
-            if len(levels) >= 3:
-                score += 25
-                add_reason("Too many subdomains (phishing pattern)")
-
-
-
-        # ----------------------------
-# Improved Hyphen Detection (STRONG)
-# ----------------------------
-
-# Count hyphens only in domain
-        if domain.count("-") > 2:
             score += 20
-            add_reason("Too many hyphens in domain")
+            add_reason("ML model suggests phishing")
 
 
 
@@ -1097,10 +1240,35 @@ def analyze_message(message):
         
 
 
+
+    
 
 
         print("[DEBUG] URL detected:", final_url)
         print("[DEBUG] Domain:", domain_name)
+
+
+
+
+
+
+        # Limit weak signals impact
+    if weak_score > 40:
+        weak_score = 40
+
+    score += weak_score
+
+        #Limit Structure Score
+    if structure_score > 40:
+        structure_score = 40
+
+    score += structure_score
+
+           # Brand Similarity score
+    if brand_score > 50:
+        brand_score = 50
+
+    score += brand_score
 
 
 
@@ -1113,8 +1281,23 @@ def analyze_message(message):
         #     score += 25
         #     add_reason("DNS lookup failed")
 
-    if score > 100:
-        score = 100
+    # if score > 100:
+    #     score = 100
+
+
+
+
+    # ----------------------------
+# FINAL RISK CLASSIFICATION
+# ----------------------------
+    if score >= 80:
+        add_reason("FINAL VERDICT: HIGH RISK (Likely Phishing)")
+
+    elif score >= 50:
+        add_reason("FINAL VERDICT: MEDIUM RISK (Suspicious)")
+
+    else:
+        add_reason("FINAL VERDICT: LOW RISK (Likely Safe)")
 
     return score, reasons
 
