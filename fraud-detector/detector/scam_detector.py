@@ -254,6 +254,132 @@ def levenshtein_distance(a,b):
 
     return previous_row[-1]
 
+
+
+
+
+
+# ----------------------------
+# Homograph Attack Detection (ASCII-based)
+# ----------------------------
+def detect_homograph_attack(domain):
+    """
+    Detects if domain contains non-ASCII characters.
+    Phishing domains often use Unicode characters that look like normal letters.
+    
+    Example:
+    google.com  -> normal (ASCII)
+    gооgle.com  -> contains Cyrillic 'о' (non-ASCII)
+    """
+
+    for char in domain:
+        # ord(char) gives ASCII/Unicode value
+        # ASCII characters range: 0–127
+        if ord(char) > 127:
+            return True  # Non-ASCII detected → suspicious
+
+    return False  # Safe ASCII domain
+
+
+
+
+
+# ----------------------------
+# URL PATH ATTACK DETECTION
+# ----------------------------
+def detect_path_attack(url):
+    """
+    Detects phishing intent based on multiple suspicious
+    keywords in the URL path.
+    """
+
+    suspicious_words = [
+        "login", "verify", "secure", "account",
+        "update", "bank", "payment", "auth", "signin"
+    ]
+
+    try:
+        parts = url.split("/", 3)
+
+        # No path present
+        if len(parts) < 4:
+            return False
+
+        path = parts[3].lower()
+
+        count = 0
+
+        for word in suspicious_words:
+            if word in path:
+                count += 1
+
+        # Trigger only if multiple keywords
+        return count >= 2
+
+    except:
+        return False
+    
+
+
+
+
+
+
+# ----------------------------
+# Subdomain Brand Trap Detection
+# ----------------------------
+def detect_subdomain_brand_trap(url, brands):
+    """
+    Detects if a trusted brand name is used in subdomain
+    instead of actual domain.
+
+    Example:
+    amazon.login.xyz  -> suspicious
+    amazon.com        -> safe
+    """
+
+    extracted = tldextract.extract(url)
+
+    subdomain = extracted.subdomain.lower()
+    main_domain = extracted.domain.lower()
+
+    # Check each brand
+    for brand in brands:
+
+        # If brand appears in subdomain BUT not actual domain
+        if brand in subdomain and brand != main_domain:
+            return True
+
+    return False
+
+
+
+
+
+# ----------------------------
+# Character Ratio Analysis
+# ----------------------------
+def digit_ratio(domain):
+    """
+    Calculates ratio of digits in domain.
+    Helps detect short randomized phishing domains.
+    """
+
+    total = len(domain)
+
+    if total == 0:
+        return 0
+
+    digits = sum(c.isdigit() for c in domain)
+
+    return digits / total
+
+
+
+
+
+
+
 # ----------------------------
 # Resolve redirect URL
 # ----------------------------
@@ -610,6 +736,22 @@ def analyze_message(message):
     urls = re.findall(r'(https?://\S+|(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})', text)
     # to remove duplicate
     urls = list(set(urls))    
+
+
+
+
+    # ----------------------------
+# FILTER INVALID DOMAINS (FIX)
+# ----------------------------
+
+    valid_urls = []
+
+    for u in urls:
+    # Only keep URLs with real domain-like structure
+        if "." in u and not u.endswith((".py", ".txt", ".exe", ".jpg", ".png")):
+            valid_urls.append(u)
+
+    urls = valid_urls
     print("[DEBUG] Extracted URLs:", urls)
 
 
@@ -658,6 +800,24 @@ def analyze_message(message):
         decoded_url = unquote(url)
         # if url redirected
         final_url, redirect_count = resolve_final_url(decoded_url)
+
+
+
+
+
+
+
+
+        # ----------------------------
+# SUBDOMAIN BRAND TRAP CHECK (NEW)
+# ----------------------------
+
+        if detect_subdomain_brand_trap(final_url, target_brands):
+
+    # Add to brand_score (important: not main score)
+            brand_score += 25
+
+            add_reason("Brand name used in subdomain (possible phishing trap)")
         
 
 
@@ -710,10 +870,71 @@ def analyze_message(message):
 # Digit Ratio Detection
 # ----------------------------
 
-        digits = sum(c.isdigit() for c in final_url)
-        if digits > 3:
-            structure_score += 15
-            add_reason(f"Too many numbers in URL ({digits})")
+        # digits = sum(c.isdigit() for c in final_url)
+        # if digits > 3:
+        #     structure_score += 15
+        #     add_reason(f"Too many numbers in URL ({digits})")
+
+
+
+
+        
+
+        # Domain extraction
+        domain_info = tldextract.extract(final_url)
+        domain = domain_info.domain
+        suffix = domain_info.suffix
+
+
+
+
+
+        
+
+
+        # ----------------------------
+# DOMAIN STRUCTURE ENGINE (FIXED)
+# ----------------------------
+
+        digit_count = sum(c.isdigit() for c in domain)
+        hyphen_count = domain.count("-")
+        dot_count = final_url.count(".")
+
+        length = len(domain)
+
+# Avoid division error
+        digit_ratio = digit_count / length if length > 0 else 0
+
+        signals = 0
+
+# ---- Individual checks ----
+
+        if digit_count >= 4:
+            signals += 1
+
+        if hyphen_count >= 2:
+            signals += 1
+
+        if dot_count >= 3:
+            signals += 1
+
+        if digit_ratio > 0.3:
+            signals += 1
+
+
+# ---- Final scoring ----
+
+        if signals >= 3:
+            structure_score += 30
+            add_reason("Highly suspicious domain structure (multiple indicators)")
+
+        elif signals == 2:
+            structure_score += 20
+            add_reason("Suspicious domain structure")
+
+        elif signals == 1:
+            structure_score += 10
+            add_reason("Minor domain irregularity")
 
 
 
@@ -737,21 +958,18 @@ def analyze_message(message):
         # ----------------------------
 # DOT COUNT DETECTION (NEW)
 # ----------------------------
-        dot_count = final_url.count(".")
+#         dot_count = final_url.count(".")
 
-# If too many dots → phishing pattern
-        if dot_count >= 4:
-            structure_score += 15
-            add_reason(f"Too many dots in URL ({dot_count})")
-
-
+# # If too many dots → phishing pattern
+#         if dot_count >= 4:
+#             structure_score += 15
+#             add_reason(f"Too many dots in URL ({dot_count})")
 
 
 
-        # Domain extraction
-        domain_info = tldextract.extract(final_url)
-        domain = domain_info.domain
-        suffix = domain_info.suffix
+
+
+        
 
 
 
@@ -834,9 +1052,9 @@ def analyze_message(message):
 # ----------------------------
 
 # Count hyphens only in domain
-        if domain.count("-") > 2:
-            score += 20
-            add_reason("Too many hyphens in domain")
+        # if domain.count("-") > 2:
+        #     score += 20
+        #     add_reason("Too many hyphens in domain")
 
 
 
@@ -858,37 +1076,27 @@ def analyze_message(message):
         
 
         # ----------------------------
-# Suspicious URL Path Detection (NEW)
+# PATH INTELLIGENCE ENGINE (FIXED)
 # ----------------------------
+        # Calculate path depth
+        path_depth = final_url.count("/")
+        # Detect keyword attack
+        is_path_attack = detect_path_attack(final_url)
 
-        suspicious_path_words = ["login", "verify", "update", "account", "bank", "secure"]
+# Case 1: Strong phishing pattern
+        if path_depth > 4 and is_path_attack:
+            structure_score += 20
+            add_reason("Deep path with multiple suspicious keywords")
 
-        # ----------------------------
-# SUSPICIOUS PATH DETECTION (IMPROVED)
-# ----------------------------
-        path_hits = 0
+# Case 2: Only keyword-based attack
+        elif is_path_attack:
+            structure_score += 15
+            add_reason("Suspicious keywords in URL path")
 
-        for word in suspicious_path_words:
-            if word in final_url:
-                path_hits += 1
-
-        path_score = 0
-
-        if path_hits > 0:
-            path_score += min(20, 10 * path_hits)
-
-        if suffix in suspicious_tlds:
-            path_score += 20
-
-# Combination bonus (only once)
-        if path_hits > 0 and suffix in suspicious_tlds:
-            path_score += 10
-
-# LIMIT PATH IMPACT
-        if path_score > 30:
-            path_score = 30
-
-        score += path_score
+# Case 3: Only deep structure
+        elif path_depth > 4:
+            structure_score += 10
+            add_reason("Unusually deep URL path")
 
         
 
@@ -896,17 +1104,35 @@ def analyze_message(message):
 
 
 
-        # ----------------------------
-# DEEP PATH STRUCTURE DETECTION (NEW)
-# ----------------------------
+#         # ----------------------------
+# # DEEP PATH STRUCTURE DETECTION (NEW)
+# # ----------------------------
 
-# Count number of slashes in URL path
-        path_depth = final_url.count("/")
+# # Count number of slashes in URL path
+#         # ----------------------------
+# # COMBINED PATH ANALYSIS (SMART)
+# # ----------------------------
 
-# Subtract 2 (for https:// or http://)
-        if path_depth > 5:
-            structure_score += 10
-            add_reason(f"Deep URL path structure detected ({path_depth} levels)")
+# # Calculate path depth
+#         path_depth = final_url.count("/")
+
+# # Detect keyword attack
+#         is_path_attack = detect_path_attack(final_url)
+
+# # Case 1: Deep + suspicious keywords (HIGH RISK)
+#         if path_depth > 4 and is_path_attack:
+#             structure_score += 20
+#             add_reason("Deep path with suspicious keywords")
+
+# # Case 2: Only deep path
+#         elif path_depth > 4:
+#             structure_score += 10
+#             add_reason("Unusually deep URL path")
+
+# # Case 3: Only keyword attack
+#         elif is_path_attack:
+#             structure_score += 15
+#             add_reason("Multiple suspicious keywords in URL path")
 
 
 
@@ -1032,6 +1258,25 @@ def analyze_message(message):
                 brand_score += 15
                 add_reason(f"Visual similarity attack detected (looks like {brand})")
                 break
+
+
+
+
+
+
+
+        # ----------------------------
+# HOMOGRAPH ATTACK CHECK (NEW)
+# ----------------------------
+
+# Check if domain contains Unicode characters
+        if detect_homograph_attack(domain):
+
+    # Add to brand_score (not main score → avoid duplication)
+            brand_score += 15  
+
+    # Reason for detection
+            add_reason("Possible homograph attack (non-ASCII domain characters)")
 
 
 
@@ -1281,8 +1526,8 @@ def analyze_message(message):
         #     score += 25
         #     add_reason("DNS lookup failed")
 
-    # if score > 100:
-    #     score = 100
+    if score > 100:
+        score = 100
 
 
 
