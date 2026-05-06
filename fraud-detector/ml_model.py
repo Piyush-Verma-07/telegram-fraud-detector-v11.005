@@ -40,16 +40,22 @@ def extract_features(url):
     features.append(digits / len(url) if len(url) > 0 else 0)
 
     # Suspicious TLD
-    suspicious_tlds = ['xyz', 'top', 'club', 'tk', 'ml']
+    # TLD length (less biased than suspicious list)
     tld = url.split('.')[-1]
-    features.append(1 if tld in suspicious_tlds else 0)
+    features.append(len(tld))
 
     # Entropy
     features.append(calculate_entropy(url))
 
+    # path length
+    features.append(len(url.split("/")))
+
     # IP address detection
-    ip_pattern = r'\d+\.\d+\.\d+\.\d+'
-    features.append(1 if re.search(ip_pattern, url) else 0)
+
+
+    # subdomain count
+    features.append(url.count("."))
+    
 
     # Keywords in URL
     keywords = ["login", "verify", "account", "bank", "secure"]
@@ -99,19 +105,25 @@ from sklearn.metrics import classification_report
 # ----------------------------
 # TRAIN / TEST SPLIT (FIRST)
 # ----------------------------
+from sklearn.model_selection import train_test_split
+
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
 )
 
+
 # ----------------------------
 # BALANCE ONLY TRAINING DATA
 # ----------------------------
+from sklearn.utils import resample
+
 train_df = pd.DataFrame(X_train)
-train_df['label'] = y_train
+train_df["label"] = y_train
 
-majority = train_df[train_df.label == 0]
-minority = train_df[train_df.label == 1]
+majority = train_df[train_df.label == 1]  # phishing (bigger)
+minority = train_df[train_df.label == 0]  # safe (smaller)
 
+# Upsample safe URLs
 minority_upsampled = resample(
     minority,
     replace=True,

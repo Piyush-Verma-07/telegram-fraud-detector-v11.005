@@ -31,20 +31,67 @@ suspicious_domain_words = [
 # ----------------------------
 
 target_brands = [
-    "google","amazon","paypal","apple","facebook",
-    "instagram","whatsapp","paytm","phonepe",
-    "gpay","upi","sbi","hdfc","icici","axis"
+    "google","gmail","youtube","googlepay","gpay",
+    "amazon","flipkart","myntra","ajio",
+    "paypal","paytm","phonepe","upi","bharatpe","mobikwik","bhim",
+    "apple","icloud","appleid","meesho",
+    "microsoft","outlook","office365","azure",
+    "facebook","instagram","whatsapp","messenger",
+    "linkedin","twitter","x",
+    "netflix","primevideo","hotstar","spotify",
+    "sbi","hdfc","icici","axis","kotak","pnb","bob",
+    "yono","onlinesbi","unionbank",
+    "irctc","uidai","aadhaar","incometax",
+    "ola","uber","zomato","swiggy",
+    "telegram","snapchat","discord",
+    "dropbox","drive","googledrive","onedrive",
+    "github","gitlab",
+    "byjus","unacademy",
+    "airtel","jio","vi"
 ]
+
+
+
 
 # ----------------------------
 # Popular trusted domains
 # ----------------------------
 
 popular_domains = [
-    "google.com","youtube.com","facebook.com","amazon.com",
-    "amazon.in","microsoft.com","apple.com",
-    "github.com","linkedin.com","wikipedia.org","chatgpt.com"
+    "google.com","youtube.com","facebook.com","instagram.com","whatsapp.com",
+    "twitter.com","x.com","linkedin.com","reddit.com","pinterest.com",
+    "chatgpt.com","bing.com","yahoo.com","duckduckgo.com","gmail.com",
+    "outlook.com","office.com","microsoft.com","apple.com","icloud.com",
+
+    "amazon.in","amazon.com","flipkart.com","myntra.com","ajio.com",
+    "meesho.com","snapdeal.com","tatacliq.com","nykaa.com","jiomart.com",
+
+    "netflix.com","primevideo.com","hotstar.com","sonyliv.com","zee5.com",
+    "spotify.com","gaana.com","jiosaavn.com","wynk.in","voot.com",
+
+    "wikipedia.org","quora.com","medium.com","stackoverflow.com","github.com",
+    "gitlab.com","coursera.org","udemy.com","byjus.com","unacademy.com",
+
+    "paytm.com","phonepe.com","gpay.com","razorpay.com","bharatpe.com",
+    "freecharge.in","mobikwik.com","airtel.in","jio.com","vi.in",
+
+    "irctc.co.in","uidai.gov.in","incometax.gov.in","india.gov.in","epfindia.gov.in",
+    "onlinesbi.sbi","hdfcbank.com","icicibank.com","axisbank.com","kotak.com",
+
+    "cricbuzz.com","espncricinfo.com","indiatimes.com","ndtv.com","aajtak.in",
+    "hindustantimes.com","thehindu.com","timesofindia.com","indianexpress.com","news18.com",
+
+    "ola.com","uber.com","rapido.bike","zomato.com","swiggy.com",
+    "makemytrip.com","goibibo.com","yatra.com","booking.com","airbnb.com",
+
+    "dropbox.com","drive.google.com","mega.nz","weebly.com","wordpress.com",
+    "shopify.com","canva.com","figma.com","notion.so","trello.com",
+
+    "bharatbillpay.com", "npci.org.in"
+
+
 ]
+
 
 # ----------------------------
 # Short URL services
@@ -1029,11 +1076,11 @@ def analyze_message(message):
 # SAFE DOMAIN KEYWORD CHECK (RULE 4)
 # ----------------------------
 
-        safe_keywords = ["github", "google", "youtube", "amazon", "microsoft"]
+        # safe_keywords = ["github", "google", "youtube", "amazon", "microsoft"]
 
-        if any(safe in domain_name for safe in safe_keywords):
-            score -= 20
-            add_reason("Known safe service keyword detected")
+        # if any(safe in domain_name for safe in safe_keywords):
+        #     score -= 5
+        #     add_reason("Known safe service keyword detected")
 
 
 
@@ -1218,6 +1265,31 @@ def analyze_message(message):
         if domain_name in short_url_services:
             score += 15
             add_reason("Shortened URL detected")
+
+
+
+
+
+
+
+        # ----------------------------
+# BRAND MISUSE DETECTION (IMPROVED)
+# ----------------------------
+
+        for brand in target_brands:
+            if brand in domain_name:
+
+        # Exact match → skip
+                if domain_name == brand + ".com":
+                    continue
+
+        # Subdomain trick (paypal.com.fake.xyz)
+                if domain_name.endswith("." + brand + ".com"):
+                    continue
+
+        # Otherwise suspicious
+                structure_score += 25
+                add_reason(f"Brand misuse detected: {brand}")
 
         
 
@@ -1667,6 +1739,33 @@ def analyze_message(message):
         brand_score = 50
 
     score += brand_score
+
+
+
+
+
+
+
+    # ----------------------------
+# SMART ML INTEGRATION (FINAL)
+# ----------------------------
+
+    try:
+    # Use ML ONLY for borderline cases
+        if 40 <= score <= 65:
+
+            ml_result = ml_detect(final_url)
+
+            if ml_result == 1:
+                score += 12
+                add_reason("ML detected phishing pattern (borderline case)")
+
+            else:
+                score -= 5  # slight confidence boost for safe
+                add_reason("ML suggests URL is likely safe")
+
+    except Exception as e:
+        print("ML error:", e)
 
 
 
