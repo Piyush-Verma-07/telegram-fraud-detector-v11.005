@@ -1050,7 +1050,7 @@ def analyze_message(message):
 
         # TRUSTED DOMAIN CHECK
         if domain_name in popular_domains:
-            score -= 40
+            score -= 25
             add_reason("Trusted domain detected")
             continue   # skip further risky checks
 
@@ -1081,6 +1081,28 @@ def analyze_message(message):
         # if any(safe in domain_name for safe in safe_keywords):
         #     score -= 5
         #     add_reason("Known safe service keyword detected")
+
+
+        
+
+
+        # ----------------------------
+# BRAND + STRUCTURE PATTERN (ADVANCED)
+# ----------------------------
+
+        if any(brand in domain_name for brand in target_brands):
+
+    # hyphen-based pattern (very common phishing)
+            if "-" in domain_name:
+                structure_score += 10
+                add_reason("Brand combined with hyphen pattern detected")
+
+    # multiple words pattern
+            if len(domain_name.split("-")) >= 3:
+                structure_score += 10
+                add_reason("Complex brand-based domain structure detected")
+
+
 
 
 
@@ -1288,7 +1310,7 @@ def analyze_message(message):
                     continue
 
         # Otherwise suspicious
-                structure_score += 25
+                structure_score += 30
                 add_reason(f"Brand misuse detected: {brand}")
 
         
@@ -1441,7 +1463,7 @@ def analyze_message(message):
             
 
         elif brand_signals == 1:
-            brand_score += 15
+            brand_score += 20
             add_reason("Possible brand-related risk")
             
 
