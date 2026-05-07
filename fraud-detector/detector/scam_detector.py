@@ -15,7 +15,7 @@ from collections import Counter
 
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 model_path = os.path.join(base_dir, "phishing_model.pkl")
-model = joblib.load(model_path)
+model = None
 
 # ----------------------------
 # Suspicious domain words
@@ -485,17 +485,18 @@ def check_phishtank(url):
 
 def ml_detect(url):
 
-    features = [
-        len(url),
-        url.count("-"),
-        url.count("."),
-        int("https" in url),
-        int(re.search(r'\d+\.\d+\.\d+\.\d+', url) is not None)
-    ]
+    # features = [
+    #     len(url),
+    #     url.count("-"),
+    #     url.count("."),
+    #     int("https" in url),
+    #     int(re.search(r'\d+\.\d+\.\d+\.\d+', url) is not None)
+    # ]
 
-    prediction = model.predict([features])
+    # prediction = model.predict([features])
 
-    return prediction[0]
+    # return prediction[0]
+    return 0
 
 
 
