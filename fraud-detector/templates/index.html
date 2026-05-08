@@ -1,58 +1,230 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-    <title>Fraud Detector</title>
-    <style>
-        body {
-            font-family: Arial;
-            background: #f4f4f4;
-            text-align: center;
-            padding: 40px;
-        }
-        textarea {
-            width: 60%;
-            height: 100px;
-            padding: 10px;
-            font-size: 16px;
-        }
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            background: #007bff;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        .result {
-            margin-top: 20px;
-            padding: 20px;
-            background: white;
-            display: inline-block;
-            text-align: left;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <title>Fraud Detector</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
 
-    <h1>🚨 Telegram Fraud Detector</h1>
+<body
+  class="antialiased bg-gradient-to-br from-[#0f172a] via-[#111827] to-black text-white min-h-screen flex items-center justify-center px-4 py-10">
 
-    <form method="POST">
-        <textarea name="message" placeholder="Paste suspicious message here..."></textarea><br><br>
-        <button type="submit">Analyze</button>
-    </form>
+  <div class="w-full max-w-3xl">
+
+    <!-- ================= HEADER ================= -->
+
+    <div class="text-center mb-10">
+
+      <h1 class="text-5xl md:text-6xl font-extrabold tracking-tight mb-4 text-white">
+        Fraud Detector
+      </h1>
+
+      <!-- MORE BRIGHT + BIGGER -->
+      <p class="text-slate-200 text-xl md:text-2xl font-medium leading-relaxed">
+        Analyze suspicious messages and URLs instantly
+      </p>
+
+    </div>
+
+    <!-- ================= INPUT CARD ================= -->
+
+    <div
+      class="bg-slate-800/95 backdrop-blur-xl border border-slate-600 p-8 rounded-3xl shadow-2xl">
+
+      <form method="POST">
+
+        <!-- TEXTAREA -->
+
+        <textarea
+          name="message"
+          rows="3"
+          class="w-full p-5 rounded-2xl bg-slate-900 border border-slate-500 text-slate-100 placeholder:text-slate-400 text-[17px] leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+          placeholder="Paste suspicious message, URL, or domain...">{{ request.form.message if request.method == 'POST' else '' }}</textarea>
+
+        <!-- BUTTON -->
+
+        <button
+          id="analyzeBtn"
+          class="mt-6 w-full bg-blue-600 hover:bg-blue-500 active:scale-[0.99] transition-all duration-200 p-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50">
+
+          <!-- TEXT -->
+          <span id="btnText">Analyze Risk</span>
+
+          <!-- SPINNER -->
+          <svg
+            id="spinner"
+            class="hidden animate-spin h-5 w-5 text-white"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24">
+
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"></circle>
+
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v8H4z"></path>
+
+          </svg>
+
+        </button>
+
+      </form>
+
+    </div>
+
+    <!-- ================= RESULT SECTION ================= -->
 
     {% if result %}
-    <div class="result">
-        <h2>Risk Score: {{ result.score }}</h2>
 
-        <h3>Reasons:</h3>
-        <ul>
-            {% for r in result.reasons %}
-                <li>{{ r }}</li>
-            {% endfor %}
-        </ul>
+    <!-- ANALYZED INPUT -->
+
+    <div
+      class="mt-7 bg-slate-800/95 backdrop-blur-xl border border-slate-600 p-7 rounded-3xl shadow-2xl">
+
+      <!-- BIGGER + BRIGHTER -->
+      <h3
+        class="text-xl font-bold text-slate-100 mb-4 tracking-wide">
+        Analyzed Input
+      </h3>
+
+      <div
+        class="bg-slate-900 border border-slate-700 p-5 rounded-2xl text-[16px] text-slate-100 break-words leading-relaxed">
+
+        {{ request.form.message }}
+
+      </div>
+
     </div>
+
+    <!-- RESULT CARD -->
+
+    <div
+      class="mt-5 bg-slate-800/95 backdrop-blur-xl border border-slate-600 p-8 rounded-3xl shadow-2xl">
+
+      <!-- SCORE -->
+
+      <div class="flex items-center justify-between gap-4 flex-wrap">
+
+        <h2 class="text-3xl font-extrabold tracking-tight text-white">
+          Risk Score: {{ result.score }}
+        </h2>
+
+        <!-- BADGE -->
+
+        {% if result.score < 30 %}
+
+        <span
+          class="bg-green-500/20 text-green-300 border border-green-500/30 px-5 py-2 rounded-full text-base font-bold">
+          🟢 SAFE
+        </span>
+
+        {% elif result.score < 60 %}
+
+        <span
+          class="bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 px-5 py-2 rounded-full text-base font-bold">
+          🟡 SUSPICIOUS
+        </span>
+
+        {% else %}
+
+        <span
+          class="bg-red-500/20 text-red-300 border border-red-500/30 px-5 py-2 rounded-full text-base font-bold">
+          🔴 HIGH RISK
+        </span>
+
+        {% endif %}
+
+      </div>
+
+      <!-- PROGRESS BAR -->
+
+      <div class="w-full bg-slate-700 rounded-full mt-6 overflow-hidden">
+
+        <div
+          class="h-4 rounded-full transition-all duration-500
+
+          {% if result.score < 30 %}
+            bg-green-500
+          {% elif result.score < 60 %}
+            bg-yellow-500
+          {% else %}
+            bg-red-500
+          {% endif %}"
+
+          style="width: {{ result.score }}%">
+
+        </div>
+
+      </div>
+
+      <!-- REASONS TITLE -->
+
+      <h3
+        class="text-xl font-bold text-slate-100 mt-8 mb-4 tracking-wide">
+        Why this score?
+      </h3>
+
+      <!-- SINGLE LAYOUT REASONS -->
+
+      <div
+        class="bg-slate-900 border border-slate-700 rounded-2xl p-5">
+
+        {% for r in result.reasons %}
+
+        <div
+          class="text-[16px] text-slate-100 leading-relaxed py-3 border-b border-slate-700 last:border-none">
+
+          • {{ r }}
+
+        </div>
+
+        {% endfor %}
+
+      </div>
+
+    </div>
+
     {% endif %}
 
+  </div>
+
+  <!-- ================= SCRIPT ================= -->
+
+  <script>
+
+    const form = document.querySelector("form");
+    const btn = document.getElementById("analyzeBtn");
+    const text = document.getElementById("btnText");
+    const spinner = document.getElementById("spinner");
+
+    form.addEventListener("submit", () => {
+
+      // Button text
+      text.innerText = "Analyzing...";
+
+      // Show spinner
+      spinner.classList.remove("hidden");
+
+      // Disable button
+      btn.disabled = true;
+
+      // Disabled style
+      btn.classList.add("opacity-70", "cursor-not-allowed");
+
+    });
+
+  </script>
+
 </body>
+
 </html>
