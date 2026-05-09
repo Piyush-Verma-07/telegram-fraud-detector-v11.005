@@ -109,6 +109,28 @@ suspicious_keywords = [
     "lottery","reward","claim","urgent","verify","otp","win"
 ]
 
+
+
+
+# ----------------------------
+# KEYWORD CLASSIFICATION (NEW)
+# ----------------------------
+
+# High-risk keywords (strong scam indicators)
+high_risk_keywords = [
+    "lottery", "winner", "prize", "reward", "claim","Urgently",
+    "urgent", "otp", "bank", "blocked", "suspended","Immediatly"
+]
+
+# Normal suspicious keywords (common but less risky)
+normal_keywords = [
+    "verify", "login", "update", "secure", "account"
+]
+
+
+
+
+
 # ----------------------------
 # Suspicious TLDs
 # ----------------------------
@@ -716,6 +738,42 @@ def analyze_message(message):
     decoded_message = unquote(message)
     text = decoded_message.lower()
 
+
+
+
+
+
+
+    # ----------------------------
+# KEYWORD COUNTING (NEW)
+# ----------------------------
+
+    high_keyword_count = 0
+    normal_keyword_count = 0
+
+# Count high-risk keywords
+    for word in high_risk_keywords:
+        if word.lower() in text:
+            high_keyword_count += 1
+
+# Count normal keywords
+    for word in normal_keywords:
+        if word.lower() in text:
+            normal_keyword_count += 1
+
+# Flag
+    keyword_flag = (high_keyword_count + normal_keyword_count) > 0
+
+
+
+
+
+
+
+
+
+
+
     # ----------------------------
 # MESSAGE INTENT CONTROL (FIXED)
 # ----------------------------
@@ -724,11 +782,11 @@ def analyze_message(message):
     pattern_flag = False
 
 # Keyword detection
-    for word in suspicious_keywords:
-        if word in text:
-            keyword_flag = True
-            detected_word = word
-            break
+    # for word in suspicious_keywords:
+    #     if word in text:
+    #         keyword_flag = True
+    #         detected_word = word
+    #         break
 
 # Pattern detection
     for pattern in scam_patterns:
@@ -739,19 +797,22 @@ def analyze_message(message):
             break
 
 # Similarity detection (only if no direct pattern)
+    similarity_flag = False   # ADD THIS BEFORE LOOP
+
     if not pattern_flag:
         for pattern in scam_patterns:
             similarity = jaccard_similarity(text, pattern)
             if similarity > 0.3:
+                similarity_flag = True   # ADD THIS
                 pattern_flag = True
                 score += 15
                 add_reason("Message similar to scam pattern: " + pattern)
                 break
 
 # Final message scoring (ONLY if no pattern found)
-    if keyword_flag and not pattern_flag:
-        weak_score += 8
-        add_reason("Suspicious keyword detected: " + detected_word)
+    # if keyword_flag and not pattern_flag:
+    #     weak_score += 8
+    #     add_reason("Suspicious keyword detected: " + detected_word)
 
 
 
@@ -813,6 +874,12 @@ def analyze_message(message):
 
     urls = valid_urls
     print("[DEBUG] Extracted URLs:", urls)
+
+
+    # ----------------------------
+# CHECK IF URL EXISTS
+# ----------------------------
+    has_url = len(urls) > 0
 
 
     
@@ -1763,7 +1830,61 @@ def analyze_message(message):
 
     score += brand_score
 
+    # ----------------------------
+# TEXT-ONLY SCORING BOOST (NEW)
+# ----------------------------
 
+    if not has_url:
+
+        add_reason("⚠️ Only message analyzed — no URL provided. Risk may increase if a link is included.")
+
+        text_score = 0
+
+    # High-risk keywords
+        if high_keyword_count > 0:
+            text_score += 30
+            add_reason(f"{high_keyword_count} high-risk keyword(s) detected")
+
+        # Extra keywords boost
+            if high_keyword_count > 1:
+                text_score += min((high_keyword_count - 1) * 10, 20)
+
+    # Normal keywords
+        if normal_keyword_count > 0:
+            text_score += 10
+            add_reason(f"{normal_keyword_count} normal keyword(s) detected")
+
+    # Scam pattern match
+        if pattern_flag:
+            text_score += 35
+            add_reason("Scam pattern detected")
+
+    # Similarity detection
+        if similarity_flag:
+            text_score += 30
+            add_reason("Message similar to known scam patterns")
+
+    # Combine logic
+        signal_count = 0
+        if high_keyword_count > 0 or normal_keyword_count > 0:
+            signal_count += 1
+        if pattern_flag:
+            signal_count += 1
+        if similarity_flag:
+            signal_count += 1
+
+    # Boost for multiple signals
+        if signal_count >= 2:
+            text_score += 15
+            add_reason("Multiple suspicious signals detected")
+
+    # Cap text score
+        if text_score > 85:
+            text_score = 85
+
+    # Override score if text-only is stronger
+        if text_score > score:
+            score = text_score
 
 
 
@@ -1773,22 +1894,22 @@ def analyze_message(message):
 # SMART ML INTEGRATION (FINAL)
 # ----------------------------
 
-    try:
-    # Use ML ONLY for borderline cases
-        if 40 <= score <= 65:
+    # try:
+    # # Use ML ONLY for borderline cases
+    #     if 40 <= score <= 65:
 
-            ml_result = ml_detect(final_url)
+    #         ml_result = ml_detect(final_url)
 
-            if ml_result == 1:
-                score += 12
-                add_reason("ML detected phishing pattern (borderline case)")
+    #         if ml_result == 1:
+    #             score += 12
+    #             add_reason("ML detected phishing pattern (borderline case)")
 
-            else:
-                score -= 5  # slight confidence boost for safe
-                add_reason("ML suggests URL is likely safe")
+    #         else:
+    #             score -= 5  # slight confidence boost for safe
+    #             add_reason("ML suggests URL is likely safe")
 
-    except Exception as e:
-        print("ML error:", e)
+    # except Exception as e:
+    #     print("ML error:", e)
 
 
 
