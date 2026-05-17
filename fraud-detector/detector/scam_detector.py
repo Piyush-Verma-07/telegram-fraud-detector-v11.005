@@ -33,22 +33,44 @@ suspicious_domain_words = [
 target_brands = [
     "google","gmail","youtube","googlepay","gpay",
     "amazon","flipkart","myntra","ajio",
-    "paypal","paytm","phonepe","upi","bharatpe","mobikwik","bhim",
+    "paypal","paytm","phonepe","bharatpe","mobikwik","bhim",
     "apple","icloud","appleid","meesho",
     "microsoft","outlook","office365","azure",
-    "facebook","instagram","whatsapp","messenger",
-    "linkedin","twitter","x",
+    "facebook","instagram","whatsapp",
+    "linkedin","twitter",
     "netflix","primevideo","hotstar","spotify",
-    "sbi","hdfc","icici","axis","kotak","pnb","bob",
+    "hdfc","icici","axis","kotak","pnb",
     "yono","onlinesbi","unionbank",
     "irctc","uidai","aadhaar","incometax",
-    "ola","uber","zomato","swiggy",
+    "uber","zomato","swiggy",
     "telegram","snapchat","discord",
-    "dropbox","drive","googledrive","onedrive",
+    "dropbox","googledrive","onedrive",
     "github","gitlab",
     "byjus","unacademy",
-    "airtel","jio","vi"
+    "airtel"
 ]
+
+
+
+
+# ----------------------------
+# TRUST / PHISHING KEYWORDS
+# ----------------------------
+
+trust_keywords = [
+    "bank", "secure", "login", "verify",
+    "update", "payment", "wallet",
+    "account", "signin", "auth",
+    "support", "service"
+]
+
+
+
+# ----------------------------
+# SHORT BRANDS (STRICT MATCH ONLY)
+# ----------------------------
+
+short_brands = ["x", "vi", "bob","sbi","ola","jio"]
 
 
 
@@ -106,7 +128,8 @@ short_url_services = [
 # ----------------------------
 
 suspicious_keywords = [
-    "lottery","reward","claim","urgent","verify","otp","win"
+    "lottery","reward","claim","urgent","verify","otp","win","claim","blocked",
+    "Suspended"
 ]
 
 
@@ -118,7 +141,7 @@ suspicious_keywords = [
 
 # High-risk keywords (strong scam indicators)
 high_risk_keywords = [
-    "lottery", "winner", "prize", "reward", "claim","Urgently",
+    "lottery", "winner", "prize", "reward", "claim","Urgently","Final Notice",
     "urgent", "otp", "bank", "blocked", "suspended","Immediatly"
 ]
 
@@ -746,6 +769,23 @@ def is_brand_match(domain, brand):
 
 
 
+
+
+
+
+# ----------------------------
+# GENERIC TOKENS TO IGNORE
+# ----------------------------
+
+generic_tokens = {
+    "login", "secure", "verify", "update", "account",
+    "check", "bank", "service", "support", "help",
+    "auth", "user", "portal", "payment", "online",
+    "signin", "confirm", "access", "system"
+}
+
+
+
 # ----------------------------
 # MAIN DETECTION FUNCTION
 # ----------------------------
@@ -835,10 +875,10 @@ def analyze_message(message):
     if not pattern_flag:
         for pattern in scam_patterns:
             similarity = jaccard_similarity(text, pattern)
-            if similarity > 0.3:
+            if similarity > 0.5:
                 similarity_flag = True   # ADD THIS
-                pattern_flag = True
-                score += 15
+                
+                score += 12
                 add_reason("Message similar to scam pattern: " + pattern)
                 break
 
@@ -887,7 +927,12 @@ def analyze_message(message):
 
 
     # URL extraction
-    urls = re.findall(r'(https?://\S+|(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})', text)
+    # Unicode-aware URL extraction
+    urls = re.findall(
+        r'(https?://[^\s]+|(?:[\w\-]+\.)+[\w\-]{2,})',
+        text,
+        re.UNICODE
+    )
     # to remove duplicate
     urls = list(set(urls))    
 
@@ -925,7 +970,11 @@ def analyze_message(message):
 # ----------------------------
 
 # Extract visible domains from text
-    visible_domains = re.findall(r'(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}', text)
+    visible_domains = re.findall(
+        r'(?:[\w\-]+\.)+[\w\-]{2,}',
+        text,
+        re.UNICODE
+    )
     print("[DEBUG] Visible domains:", visible_domains)
 
 
@@ -941,14 +990,14 @@ def analyze_message(message):
 
     if len(unique_domains) >= 2:
         score += 18
-        add_reason("Hidden URL mismatch detected")
+        add_reason("The visible link text does not match the actual destination")
 
 
 
 
 
     if urls:
-        score += 15
+        score += 10
         add_reason("Message contains URL or domain")
 
 
@@ -1086,15 +1135,15 @@ def analyze_message(message):
 
         if signals >= 3:
             structure_score += 30
-            add_reason("Highly suspicious domain structure (multiple indicators)")
+            add_reason("Highly suspicious domain structure commonly used in phishing URLs (multiple indicators)")
 
         elif signals == 2:
             structure_score += 20
-            add_reason("Suspicious domain structure")
+            add_reason("Suspicious domain structure commonly used in phishing URLs")
 
         elif signals == 1:
             structure_score += 10
-            add_reason("Minor domain irregularity")
+            add_reason("Domain contains unusual structure commonly used in phishing URLs")
 
 
 
@@ -1109,7 +1158,7 @@ def analyze_message(message):
 
         if url_length > 60:
             structure_score += 15
-            add_reason(f"Long URL detected ({url_length} characters)")
+            add_reason(f"Very long URLs are commonly used to hide phishing intent ({url_length} characters)")
 
 
 
@@ -1152,7 +1201,7 @@ def analyze_message(message):
         # TRUSTED DOMAIN CHECK
         if domain_name in popular_domains:
             score -= 25
-            add_reason("Trusted domain detected")
+            add_reason("The domain matches a widely recognized and commonly trusted service")
             continue   # skip further risky checks
 
 
@@ -1168,7 +1217,7 @@ def analyze_message(message):
     # Only add weak signal if structure is not already strong
             if structure_score < 20:
                 weak_score += 5
-                add_reason("Domain not in popular domain list")
+                add_reason("This domain is not commonly recognized or widely used")
 
 
 
@@ -1217,7 +1266,22 @@ def analyze_message(message):
 
         if any(tld.endswith(bad) for bad in suspicious_tlds):
             structure_score += 15   # moved to structure layer
-            add_reason(f"Suspicious top-level domain (.{tld})")
+            add_reason(f"This domain extension is commonly used in phishing attack domain (.{tld})")
+
+
+
+        brand_signals = 0
+
+        entropy_detected = False
+
+
+
+
+
+        # Detect whether domain already contains brand-related patterns
+        brand_context_detected = any(
+            brand in domain_name for brand in target_brands
+        )
 
 
 
@@ -1237,7 +1301,8 @@ def analyze_message(message):
                 else:
                     structure_score += 20
 
-                add_reason(f"High entropy domain detected ({round(entropy,2)})")
+                # Show entropy explanation only if stronger brand attacks are absent
+                entropy_detected = True
 
 
 
@@ -1355,8 +1420,8 @@ def analyze_message(message):
         print("[DEBUG] Redirect count:", redirect_count)
 
         if redirect_count >= 3:
-            score += 18
-            add_reason(f"Multiple redirects detected ({redirect_count})")
+            score += 25
+            add_reason(f"The link redirects through multiple destinations, which is commonly used to hide malicious websites ({redirect_count})")
 
         elif redirect_count == 2:
             score += 15
@@ -1440,16 +1505,28 @@ def analyze_message(message):
 
         for part in parts:
 
+    # Ignore very short tokens
             if len(part) < 4:
+                continue
+
+    # Ignore generic phishing words
+            if part in generic_tokens:
                 continue
 
             for brand in target_brands:
 
                 distance = levenshtein_distance(part, brand)
 
-                if 0 < distance <= 2 and abs(len(part) - len(brand)) <= 1:
+                # Stronger typosquatting validation
+                similarity_ratio = 1 - (distance / max(len(part), len(brand)))
+
+                if (
+                    0 < distance <= 2
+                        and abs(len(part) - len(brand)) <= 1
+                        and similarity_ratio >= 0.7
+                ):
                     
-                    add_reason(f"Possible typosquatting of brand: {brand}")
+                    add_reason(f"The website name is intentionally misspelled to resemble a trusted brand: {brand}")
                     break
         
 
@@ -1477,7 +1554,7 @@ def analyze_message(message):
         for brand in target_brands:
             if brand in normalized_domain and brand not in domain:
                 
-                add_reason(f"Visual similarity attack detected (looks like {brand})")
+                add_reason(f"The domain is designed to visually resemble a trusted brand (looks like {brand})")
                 break
 
 
@@ -1497,7 +1574,7 @@ def analyze_message(message):
               
 
     # Reason for detection
-            add_reason("Possible homograph attack (non-ASCII domain characters)")
+            add_reason("The website name uses confusing letters to look like a trusted site")
 
 
 
@@ -1508,7 +1585,7 @@ def analyze_message(message):
 # BRAND INTELLIGENCE ENGINE (FINAL)
 # ----------------------------
 
-        brand_signals = 0
+        
         brand_types = []
 
 # --- Subdomain trap ---
@@ -1519,12 +1596,24 @@ def analyze_message(message):
 # --- Typosquatting ---
         parts = re.split(r'[-.]', domain)
         for part in parts:
+
+    # Ignore very short tokens
             if len(part) < 4:
+                continue
+
+    # Ignore generic phishing words
+            if part in generic_tokens:
                 continue
 
             for brand in target_brands:
                 distance = levenshtein_distance(part, brand)
-                if 0 < distance <= 2:
+                similarity_ratio = 1 - (distance / max(len(part), len(brand)))
+
+                if (
+                        0 < distance <= 2
+                        and abs(len(part) - len(brand)) <= 1
+                        and similarity_ratio >= 0.7
+                ):
                     brand_signals += 1
                     brand_types.append("typosquatting")
                     break
@@ -1565,15 +1654,25 @@ def analyze_message(message):
 
         if brand_signals >= 3:
             brand_score += 45
-            add_reason(f"Strong brand impersonation detected ({detected_brand})")
+            add_reason(f"The domain references a trusted brand in a potentially misleading way ({detected_brand})")
 
         elif brand_signals == 2:
             brand_score += 30
-            add_reason(f"Likely brand impersonation ({detected_brand})")
+            add_reason(f"The domain references a trusted brand in a potentially misleading way ({detected_brand})")
 
         elif brand_signals == 1:
             brand_score += 20
-            add_reason(f"Possible brand-related risk ({detected_brand})")
+            add_reason(f"This domain appears designed to impersonate the trusted brand ({detected_brand})")
+
+
+
+
+
+        
+
+        # Show entropy reason only if stronger phishing indicators are absent
+        if entropy_detected and brand_signals == 0:
+            add_reason("The domain uses an unusually complex structure often associated with phishing websites")
             
 
 
@@ -1598,7 +1697,7 @@ def analyze_message(message):
                 add_reason(f"Private IP used in URL ({ip})")
             else:
                 score += 25
-                add_reason(f"Public IP address used in URL ({ip})")
+                add_reason(f"The link uses a raw IP address instead of a normal domain name, which is common in phishing attacks({ip})")
         
 
 
@@ -1698,7 +1797,7 @@ def analyze_message(message):
     # Only flag if domain looks real
             if "." in domain_name:
                 score += 10
-                add_reason("Domain failed DNS resolution")
+                add_reason("The domain could not be verified or reached through normal internet lookup")
         
 
         is_bad = False
@@ -1877,7 +1976,7 @@ def analyze_message(message):
 
     if not has_url:
 
-        add_reason("⚠️ Only message analyzed — no URL provided. Risk may increase if a link is included.")
+        # add_reason("⚠️ Only message analyzed — no URL provided. Risk may increase if a link is included.")
 
         text_score = 0
 
@@ -1898,12 +1997,13 @@ def analyze_message(message):
     # Scam pattern match
         if pattern_flag:
             text_score += 35
-            add_reason("Scam pattern detected")
+            add_reason("The message contains phrases frequently associated with scams or phishing attempts")
 
     # Similarity detection
-        if similarity_flag:
-            text_score += 30
-            add_reason("Message similar to known scam patterns")
+# Only add small reinforcement if exact pattern was NOT already detected
+        if similarity_flag and not pattern_flag:
+            text_score += 12
+            add_reason("The message closely resembles wording commonly used in scam or phishing messages")
 
     # Combine logic
         signal_count = 0
@@ -1917,7 +2017,12 @@ def analyze_message(message):
     # Boost for multiple signals
         if signal_count >= 2:
             text_score += 15
-            add_reason("Multiple suspicious signals detected")
+            add_reason("Several independent warning signs were detected in the message")
+
+
+        # Show warning only if suspicious signals exist
+        if high_keyword_count > 0 or normal_keyword_count > 0 or pattern_flag or similarity_flag:
+            add_reason("⚠️ Only message analyzed — no URL provided. Risk may increase if a link is included.")
 
     # Cap text score
         if text_score > 85:

@@ -22,3 +22,11 @@ complete your kyc verification
 verify your bank account
 confirm your identity
 update your kyc immediately
+Dear customer, your KYC has expired. Update now to avoid account suspension
+INR 25,000 debited from your account. If not done by you, report here
+Congratulations! You are eligible for a pre-approved loan of Rs. 5 lakhs. Apply now
+Your OTP for a transaction of INR 15,000 is 4587. Do not share with anyone.
+IRCTC: Your account will be deactivated due to inactivity. Re-verify your mobile and Aadhaar now
+Income Tax Dept: A refund of ₹14,200 is pending in your account. Claim it within 48 hours by updating your bank details
+Dear Customer, your PNB net banking has been temporarily suspended due to suspicious activity. Verify your identity immediately
+Your order failed. Confirm payment at
