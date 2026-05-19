@@ -1,1 +1,0 @@
-score, reasons, verdict = analyze_message

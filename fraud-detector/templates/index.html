@@ -5,13 +5,48 @@
   <meta charset="UTF-8" />
   <title>Fraud Detector</title>
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icon.svg') }}">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
 <body
-  class="antialiased bg-gradient-to-br from-[#0f172a] via-[#111827] to-black text-white min-h-screen flex items-center justify-center px-4 py-10">
+  class="
+  antialiased
+  bg-gradient-to-br
+  from-[#0f172a]
+  via-[#111827]
+  to-black
+  text-white
+  min-h-screen
+  px-4
+
+  {% if result %}
+
+    flex
+    justify-center
+
+    pt-20
+    pb-32
+
+  {% else %}
+
+    flex
+    items-center
+    justify-center
+    py-10
+
+    -translate-y-12
+    sm:-translate-y-24
+    md:-translate-y-28
+
+    lg:translate-y-0
+    xl:translate-y-0
+    2xl:translate-y-0
+
+  {% endif %}
+  ">
 
   <div class="w-full max-w-3xl">
 
