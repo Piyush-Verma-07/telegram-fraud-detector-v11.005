@@ -31,17 +31,14 @@
 
   {% if result %}
 
-    flex
-    justify-center
+    
 
     pt-20
     pb-32
 
   {% else %}
 
-    flex
-    items-center
-    justify-center
+    
     py-10
 
     -translate-y-12
@@ -61,7 +58,40 @@
   }
 </script>
 
-  <div class="w-full max-w-3xl mx-auto">
+
+
+
+
+
+  <!-- ================= PAGE LAYOUT WRAPPER ================= -->
+<!-- 
+  This wrapper creates:
+  - centered homepage
+  - footer support
+  - natural vertical spacing
+-->
+
+<div class="min-h-screen flex flex-col">
+
+  <!-- ================= MAIN CONTENT AREA ================= -->
+
+  <main
+  class="
+  flex
+  items-center
+  justify-center
+
+  pt-16
+  pb-20
+  ">
+
+    <!-- ================= CENTERED CONTENT ================= -->
+
+    <div class="w-full max-w-3xl mx-auto">
+
+
+
+
 
     <!-- ================= HEADER ================= -->
 
@@ -244,6 +274,82 @@
     {% endif %}
 
   </div>
+
+
+
+
+
+
+
+      </div>
+
+  </main>
+
+  <!-- ================= FOOTER TEST ================= -->
+  <!-- Pure black footer for architecture testing -->
+
+ <!-- ================= FOOTER ================= -->
+<!-- 
+  Minimal premium footer
+  Natural positioning
+  Non-sticky
+-->
+
+<!-- ================= FOOTER ================= -->
+
+<footer
+  class="
+  w-full
+
+  mt-24
+
+  py-6
+  ">
+
+  <div
+    class="
+    flex
+    justify-center
+    items-center
+    gap-6
+    text-slate-400
+    text-xl
+    font-medium
+    ">
+
+    <a href="/privacy-policy">
+      Privacy Policy
+    </a>
+
+    <span>|</span>
+
+    <a href="/terms">
+      Terms & Conditions
+    </a>
+
+    <span>|</span>
+
+    <a href="/contact">
+      Contact Us
+    </a>
+
+  </div>
+
+</footer>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
 
   <!-- ================= SCRIPT ================= -->
 

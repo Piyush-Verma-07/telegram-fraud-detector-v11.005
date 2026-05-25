@@ -13,13 +13,12 @@ def home():
         score, reasons, verdict = analyze_message(message)
 
         result = {
-          "score": score,
-          "reasons": reasons,
-          "verdict": verdict
-       }     
+            "score": score,
+            "reasons": reasons,
+            "verdict": verdict
+        }
 
     return render_template("index.html", result=result)
-
 
 if __name__ == "__main__":
     app.run(debug=True)
