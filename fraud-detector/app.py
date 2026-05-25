@@ -20,5 +20,33 @@ def home():
 
     return render_template("index.html", result=result)
 
+
+
+# ================= PRIVACY POLICY PAGE =================
+
+@app.route("/privacy-policy")
+def privacy_policy():
+
+    return render_template("privacy_policy.html")
+
+
+# ================= TERMS PAGE =================
+
+@app.route("/terms")
+def terms():
+
+    return render_template("terms.html")
+
+
+# ================= CONTACT PAGE =================
+
+@app.route("/contact")
+def contact():
+
+    return render_template("contact.html")
+
+
+
+
 if __name__ == "__main__":
     app.run(debug=True)
