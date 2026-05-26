@@ -67,104 +67,6 @@ trust_keywords = [
 
 
 # ----------------------------
-# SCAM CATEGORY DETECTION
-# ----------------------------
-
-# Banking / KYC scams
-banking_scam_words = [
-    "bank", "kyc", "account", "verify",
-    "otp", "suspended", "blocked",
-    "update", "payment", "upi"
-]
-
-# Delivery / parcel scams
-delivery_scam_words = [
-    "parcel", "delivery", "shipment",
-    "tracking", "courier", "dispatch",
-    "colis", "relay"
-]
-
-# Login / credential phishing
-credential_scam_words = [
-    "login", "signin", "password",
-    "auth", "secure", "verify",
-    "office365"
-]
-
-# Reward / lottery scams
-reward_scam_words = [
-    "reward", "prize", "winner",
-    "lottery", "claim", "bonus",
-    "gift"
-]
-
-
-
-
-
-
-
-# # ----------------------------
-# # PHISHING INTENT DETECTION
-# # ----------------------------
-
-# # Login / credential theft intent
-# credential_intent_words = [
-#     "login", "signin", "password",
-#     "verify", "authentication",
-#     "secure", "account"
-# ]
-
-# # Payment / billing intent
-# payment_intent_words = [
-#     "payment", "billing", "invoice",
-#     "refund", "transaction", "upi",
-#     "card"
-# ]
-
-# # Support / helpdesk impersonation
-# support_intent_words = [
-#     "support", "helpdesk", "customer care",
-#     "service", "assistance", "help"
-# ]
-
-
-
-
-
-
-
-# # ----------------------------
-# # SOCIAL ENGINEERING DETECTION
-# # ----------------------------
-
-# # Urgency / pressure tactics
-# urgency_words = [
-#     "urgent", "immediately", "now",
-#     "today", "expire", "suspended",
-#     "blocked", "warning", "limited time"
-# ]
-
-# # Fear-based manipulation
-# fear_words = [
-#     "suspended", "blocked", "unauthorized",
-#     "security alert", "compromised",
-#     "locked", "fraud detected"
-# ]
-
-# # Reward / temptation manipulation
-# reward_words = [
-#     "winner", "bonus", "reward",
-#     "claim", "gift", "prize",
-#     "free"
-# ]
-
-
-
-
-
-
-# ----------------------------
 # SHORT BRANDS (STRICT MATCH ONLY)
 # ----------------------------
 
@@ -939,114 +841,7 @@ def analyze_message(message):
 
 
 
-    # ----------------------------
-# SCAM CATEGORY ANALYSIS
-# ----------------------------
 
-    detected_scam_categories = []
-
-# Banking scam detection
-    if sum(word in text for word in banking_scam_words) >= 2:
-        detected_scam_categories.append("banking")
-
-# Delivery scam detection
-    if sum(word in text for word in delivery_scam_words) >= 2:
-        detected_scam_categories.append("delivery")
-
-# Credential phishing detection
-    if sum(word in text for word in credential_scam_words) >= 2:
-        detected_scam_categories.append("credential")
-
-# Reward scam detection
-    if sum(word in text for word in reward_scam_words) >= 2:
-        detected_scam_categories.append("reward")
-
-
-
-
-
-
-
-    # ----------------------------
-# SEMANTIC SCAM CONTEXT
-# ----------------------------
-
-    for category in detected_scam_categories:
-
-        if category == "banking":
-            score += 8
-            add_reason(
-                "The message resembles a banking or account verification scam"
-            )
-
-        elif category == "delivery":
-            score += 8
-            add_reason(
-                "The message resembles a parcel or delivery phishing scam"
-            )
-
-        elif category == "credential":
-            score += 10
-            add_reason(
-                "The message appears designed to steal account login credentials"
-            )
-
-        elif category == "reward":
-            score += 8
-            add_reason(
-                "The message resembles a prize, reward, or lottery scam"
-            )
-
-
-
-    
-
-
-
-#     # ----------------------------
-# # BRAND + INTENT RELATIONSHIP ANALYSIS
-# # ----------------------------
-
-#     brand_intent_detected = False
-
-#     for brand in target_brands:
-
-#         if brand in text:
-
-#         # Credential phishing
-#             if sum(word in text for word in credential_intent_words) >= 2:
-
-#                 score += 12
-
-#                 add_reason(
-#                     f"The message appears to imitate {brand} account services to steal login credentials"
-#                 )
-
-#                 brand_intent_detected = True
-
-#         # Payment phishing
-#             elif sum(word in text for word in payment_intent_words) >= 2:
-
-#                 score += 10
-
-#                 add_reason(
-#                     f"The message appears to impersonate {brand} payment or billing services"
-#                 )
-
-#                 brand_intent_detected = True
-
-#         # Support impersonation
-#             elif sum(word in text for word in support_intent_words) >= 2:
-
-#                 score += 10
-
-#                 add_reason(
-#                     f"The message appears to imitate {brand} customer support services"
-#                 )
-
-#                 brand_intent_detected = True
-
-#             break
 
 
 
@@ -1086,17 +881,6 @@ def analyze_message(message):
                 score += 12
                 add_reason("Message similar to scam pattern: " + pattern)
                 break
-    
-
-
-
-
-
-
-    
-
-
-
 
 # Final message scoring (ONLY if no pattern found)
     # if keyword_flag and not pattern_flag:
@@ -1314,17 +1098,6 @@ def analyze_message(message):
 
 
 
-        # Full hostname for phishing analysis
-        hostname = domain_info.fqdn.lower()
-
-# Remove www prefix
-        hostname = hostname.replace("www.", "")
-        print("[DEBUG] Hostname:", hostname)
-
-
-
-
-
         
 
 
@@ -1332,11 +1105,11 @@ def analyze_message(message):
 # DOMAIN STRUCTURE ENGINE (FIXED)
 # ----------------------------
 
-        digit_count = sum(c.isdigit() for c in hostname)
-        hyphen_count = hostname.count("-")
+        digit_count = sum(c.isdigit() for c in domain)
+        hyphen_count = domain.count("-")
         dot_count = final_url.count(".")
 
-        length = len(hostname)
+        length = len(domain)
 
 # Avoid division error
         digit_ratio = digit_count / length if length > 0 else 0
@@ -1687,7 +1460,25 @@ def analyze_message(message):
 
 
 
-       
+        # ----------------------------
+# BRAND MISUSE DETECTION (IMPROVED)
+# ----------------------------
+
+        for brand in target_brands:
+            if is_brand_match(domain_name, brand):
+
+        # Exact match → skip
+                if domain_name == brand + ".com":
+                    continue
+
+        # Subdomain trick (paypal.com.fake.xyz)
+                if domain_name.endswith("." + brand + ".com"):
+                    continue
+
+        # Otherwise suspicious
+                structure_score += 30
+                # add_reason(f"Brand misuse detected: {brand}")
+
         
 
 
@@ -1706,17 +1497,11 @@ def analyze_message(message):
                 break
 
 
-
-
-        # Store strongest detected impersonated brand
-        detected_brand = None
-
-        
 # ----------------------------
 # TYPOSQUATTING DETECTION (CLEAN)
 # ----------------------------
 
-        parts = re.split(r'[-.]', hostname)
+        parts = re.split(r'[-.]', domain)
 
         for part in parts:
 
@@ -1740,8 +1525,7 @@ def analyze_message(message):
                         and abs(len(part) - len(brand)) <= 1
                         and similarity_ratio >= 0.7
                 ):
-                    if detected_brand is None:
-                        detected_brand = brand
+                    
                     add_reason(f"The website name is intentionally misspelled to resemble a trusted brand: {brand}")
                     break
         
@@ -1762,15 +1546,14 @@ def analyze_message(message):
         }
 
 # Normalize domain
-        normalized_domain = hostname
+        normalized_domain = domain
         for fake, real in char_map.items():
             normalized_domain = normalized_domain.replace(fake, real)
 
 # Check if it mimics a brand visually
         for brand in target_brands:
-            if brand in normalized_domain and not is_brand_match(domain_name, brand):
-                if detected_brand is None:
-                    detected_brand = brand
+            if brand in normalized_domain and brand not in domain:
+                
                 add_reason(f"The domain is designed to visually resemble a trusted brand (looks like {brand})")
                 break
 
@@ -1785,7 +1568,7 @@ def analyze_message(message):
 # ----------------------------
 
 # Check if domain contains Unicode characters
-        if detect_homograph_attack(hostname):
+        if detect_homograph_attack(domain):
 
     # Add to brand_score (not main score → avoid duplication)
               
@@ -1811,7 +1594,7 @@ def analyze_message(message):
             brand_types.append("subdomain")
 
 # --- Typosquatting ---
-        parts = re.split(r'[-.]', hostname)
+        parts = re.split(r'[-.]', domain)
         for part in parts:
 
     # Ignore very short tokens
@@ -1837,7 +1620,7 @@ def analyze_message(message):
 
 # --- Visual similarity ---
         char_map = {'0':'o','1':'l','3':'e','@':'a','$':'s'}
-        normalized = hostname
+        normalized = domain
         for f, r in char_map.items():
             normalized = normalized.replace(f, r)
 
@@ -1848,7 +1631,7 @@ def analyze_message(message):
                 break
 
 # --- Homograph ---
-        if detect_homograph_attack(hostname):
+        if detect_homograph_attack(domain):
             brand_signals += 1
             brand_types.append("homograph")
 
@@ -1861,31 +1644,24 @@ def analyze_message(message):
 # FINAL BRAND MESSAGE (CLEAN)
 # ----------------------------
 
-        
+        detected_brand = None
 
 # Try to find which brand matched
         for brand in target_brands:
-            if is_brand_match(hostname, brand):
-                if detected_brand is None:
-                    detected_brand = brand
+            if is_brand_match(domain, brand):
+                detected_brand = brand
                 break
 
         if brand_signals >= 3:
             brand_score += 45
-            if detected_brand is None:
-                detected_brand = brand
             add_reason(f"The domain references a trusted brand in a potentially misleading way ({detected_brand})")
 
         elif brand_signals == 2:
             brand_score += 30
-            if detected_brand is None:
-                detected_brand = brand
             add_reason(f"The domain references a trusted brand in a potentially misleading way ({detected_brand})")
 
         elif brand_signals == 1:
             brand_score += 20
-            if detected_brand is None:
-                detected_brand = brand
             add_reason(f"This domain appears designed to impersonate the trusted brand ({detected_brand})")
 
 
@@ -2070,15 +1846,12 @@ def analyze_message(message):
         strong_signal_count = 0
 
         strong_keywords = [
-            "domain extension",
-            "misspelled",
-            "visually resemble",
-            "impersonate",
-            "homograph",
-            "deep path",
-            "redirects",
-            "raw IP address",
-            "subdomain"
+            "Suspicious top-level domain",
+            "High entropy",
+            "Brand impersonation",
+            "Possible typosquatting",
+            "Public IP address",
+            "Shortened URL"
         ]
 
 # Check how many strong signals already triggered
