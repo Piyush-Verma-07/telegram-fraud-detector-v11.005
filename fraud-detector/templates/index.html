@@ -16,6 +16,26 @@
 
   <!-- Tailwind CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='output.css') }}">
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
 </head>
 
 <body
@@ -41,9 +61,7 @@
     
     py-10
 
-    -translate-y-12
-    sm:-translate-y-24
-    md:-translate-y-28
+    
 
     lg:translate-y-0
     xl:translate-y-0
@@ -71,19 +89,41 @@
   - natural vertical spacing
 -->
 
-<div class="min-h-screen flex flex-col">
+<!-- <div class="min-h-screen flex flex-col"> -->
+
+
+
+
+
+  <div class="min-h-screen flex flex-col overflow-x-hidden">
+
+  
 
   <!-- ================= MAIN CONTENT AREA ================= -->
 
-  <main
-  class="
-  flex
-  items-center
-  justify-center
 
-  pt-16
-  pb-20
-  ">
+
+
+
+  
+  <main
+class="
+min-h-screen
+flex
+justify-center
+
+items-start
+pt-[12vh]
+
+sm:pt-[14vh]
+
+md:pt-[16vh]
+
+lg:items-center
+lg:pt-0
+
+pb-24
+">
 
     <!-- ================= CENTERED CONTENT ================= -->
 
@@ -304,19 +344,27 @@
 
   
 
-  py-6
+  py-10
+mt-6
   ">
 
   <div
-    class="
-    flex
-    justify-center
-    items-center
-    gap-6
-    text-slate-400
-    text-xl
-    font-medium
-    ">
+class="
+flex
+flex-wrap
+justify-center
+items-center
+gap-x-6
+gap-y-3
+
+text-slate-400
+text-sm
+sm:text-base
+md:text-lg
+
+font-medium
+text-center
+">
 
     <a href="/privacy-policy">
       Privacy Policy
