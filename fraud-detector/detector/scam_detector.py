@@ -109,7 +109,7 @@ popular_domains = [
     "dropbox.com","drive.google.com","mega.nz","weebly.com","wordpress.com",
     "shopify.com","canva.com","figma.com","notion.so","trello.com",
 
-    "bharatbillpay.com", "npci.org.in"
+    "bharatbillpay.com", "npci.org.in" , "frauddetector.in"
 
 
 ]
@@ -2036,40 +2036,15 @@ def analyze_message(message):
 
 
 
-    # ----------------------------
-# SMART ML INTEGRATION (FINAL)
-# ----------------------------
-
-    # try:
-    # # Use ML ONLY for borderline cases
-    #     if 40 <= score <= 65:
-
-    #         ml_result = ml_detect(final_url)
-
-    #         if ml_result == 1:
-    #             score += 12
-    #             add_reason("ML detected phishing pattern (borderline case)")
-
-    #         else:
-    #             score -= 5  # slight confidence boost for safe
-    #             add_reason("ML suggests URL is likely safe")
-
-    # except Exception as e:
-    #     print("ML error:", e)
-
-
-
-
-
-        # # DNS check
-        # try:
-        #     dns.resolver.resolve(domain_name, "A")
-        # except:
-        #     score += 25
-        #     add_reason("DNS lookup failed")
+ 
 
     if score > 100:
         score = 100
+
+
+
+    if score < 0:
+        score = 0
 
     
     # ----------------------------

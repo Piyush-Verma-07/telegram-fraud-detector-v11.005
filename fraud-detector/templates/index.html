@@ -161,7 +161,7 @@ pb-24
           name="message"
           rows="3"
           class="w-full p-5 rounded-2xl bg-slate-900 border border-slate-500 text-slate-100 placeholder:text-slate-400 text-[17px] leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-          placeholder="Paste suspicious message, URL, or domain...">{{ request.form.message if request.method == 'POST' else '' }}</textarea>
+          placeholder="Paste suspicious message, URL, or domain...">{{ result.message if result else '' }}</textarea>
 
         <!-- BUTTON -->
 
@@ -219,8 +219,7 @@ pb-24
       <div
         class="bg-slate-900 border border-slate-700 p-5 rounded-2xl text-[16px] text-slate-100 break-words leading-relaxed">
 
-        {{ request.form.message }}
-
+        {{ result.message }}
       </div>
 
     </div>

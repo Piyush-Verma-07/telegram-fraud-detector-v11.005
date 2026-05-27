@@ -1,25 +1,51 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect, url_for, session
 from detector.scam_detector import analyze_message
 
 app = Flask(__name__)
 
+
+@app.after_request
+def add_header(response):
+
+    response.cache_control.no_store = True
+    response.cache_control.no_cache = True
+    response.cache_control.must_revalidate = True
+    response.cache_control.max_age = 0
+
+    return response
+
+
+
+
+app.secret_key = "fraud_detector_secret"
 @app.route("/", methods=["GET", "POST"])
 def home():
-    result = None
+
+    # ================= POST =================
 
     if request.method == "POST":
+
         message = request.form["message"]
 
         score, reasons, verdict = analyze_message(message)
 
-        result = {
+        session["result"] = {
             "score": score,
             "reasons": reasons,
-            "verdict": verdict
+            "verdict": verdict,
+            "message": message
         }
 
-    return render_template("index.html", result=result)
+        return redirect(url_for("home"))
 
+    # ================= GET =================
+
+    result = session.pop("result", None)
+
+    return render_template(
+        "index.html",
+        result=result
+    )
 
 
 # ================= PRIVACY POLICY PAGE =================

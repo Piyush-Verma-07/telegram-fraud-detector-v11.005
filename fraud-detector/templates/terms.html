@@ -15,6 +15,31 @@
 
   </title>
 
+
+    <!-- ================= FAVICON ================= -->
+
+  <link
+    rel="icon"
+    type="image/svg+xml"
+    href="{{ url_for('static', filename='icon.svg') }}">
+
+  <!-- ================= PWA ================= -->
+
+  <link
+    rel="manifest"
+    href="{{ url_for('static', filename='manifest.json') }}">
+
+  <meta
+    name="theme-color"
+    content="#0f172a">
+
+  <link
+    rel="apple-touch-icon"
+    href="{{ url_for('static', filename='icon-192.png') }}">
+
+
+    
+
   <!-- Tailwind Output CSS -->
 
   <link
