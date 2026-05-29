@@ -162,6 +162,17 @@ suspicious_tlds = [
     "xyz","top","click","site","live","gq","cf","ml"
 ]
 
+
+#trusted tlds
+trusted_tlds = [
+    "com", "org", "net", "gov", "edu",
+    "in", "co.in"
+]
+
+
+
+
+
 # ----------------------------
 # Load scam patterns
 # ----------------------------
@@ -182,6 +193,22 @@ def load_scam_patterns():
 
 scam_patterns = load_scam_patterns()
 
+
+
+
+
+
+
+
+def normalize_url(url):
+
+        url = url.strip().lower()
+
+        # Remove trailing slash
+        if url.endswith("/"):
+            url = url[:-1]
+
+        return url
 
 
 
@@ -215,10 +242,10 @@ def load_urlhaus():
                 # URL is 3rd column (index 2)
                 if len(parts) > 2:
                     url = parts[2].strip().strip('"')
-                    urlhaus_set.add(url)
+                    urlhaus_set.add(normalize_url(url))
 
-    except:
-        print("URLhaus dataset not found")
+    except Exception as e:
+        print("URLhaus dataset error:", e)
 
     return urlhaus_set
 
@@ -275,8 +302,9 @@ def get_domain_age(domain):
     try:
 
         response = requests.get(url, headers=headers, params=params, timeout=5)
-
+        print("WHOIS Status:", response.status_code)
         data = response.json()
+        print("WHOIS API Response:", data)
 
         result = data.get("result")
 
@@ -296,7 +324,8 @@ def get_domain_age(domain):
 
         return age_days
 
-    except:
+    except Exception as e:
+        print("Domain age error:", e)
         return None
 
 # ----------------------------
@@ -472,13 +501,25 @@ def digit_ratio(domain):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 # ----------------------------
 # Resolve redirect URL
 # ----------------------------
 
 def resolve_final_url(url):
     try:
-        response = requests.get(url, allow_redirects=True, timeout=5)
+        response = requests.get(url, allow_redirects=True, timeout=7)
 
         final_url = response.url
 
@@ -561,13 +602,10 @@ def load_openphish():
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             for line in f:
-                url = line.strip().lower()
-                # Normalize URL (same as detection)
-                url = url.replace("https://", "").replace("http://", "")
-                url = url.rstrip("/")
+                url = line.strip()
 
                 if url:
-                    openphish_set.add(url)
+                    openphish_set.add(normalize_url(url))
     
     except:
         print("OpenPhish dataset not found")
@@ -609,7 +647,7 @@ def check_google_safe_browsing(url):
 
     try:
 
-        response = requests.post(endpoint, json=payload, timeout=5)
+        response = requests.post(endpoint, json=payload, timeout=7)
 
         data = response.json()
 
@@ -642,7 +680,7 @@ def check_urlhaus(url):
     }
 
     try:
-        response = requests.post(api_url, headers=headers, data=payload, timeout=5)
+        response = requests.post(api_url, headers=headers, data=payload, timeout=7)
 
         result = response.json()
 
@@ -682,7 +720,7 @@ def check_abuseipdb(ip):
     }
 
     try:
-        response = requests.get(url, headers=headers, params=params, timeout=5)
+        response = requests.get(url, headers=headers, params=params, timeout=7)
         data = response.json()
 
         abuse_score = data["data"]["abuseConfidenceScore"]
@@ -722,7 +760,7 @@ def load_threatfox():
                     ioc = item.get("ioc_value")
 
                     if ioc:
-                        threatfox_set.add(ioc.strip())
+                        threatfox_set.add(normalize_url(ioc))
 
         print("Total ThreatFox entries:", len(threatfox_set))
 
@@ -809,7 +847,12 @@ def analyze_message(message):
             reasons.append(reason)
 
     decoded_message = unquote(message)
-    text = decoded_message.lower()
+
+# Original text
+    text = decoded_message
+
+# Lowercase text only for keyword detection
+    text_lower = decoded_message.lower()
 
 
 
@@ -826,12 +869,12 @@ def analyze_message(message):
 
 # Count high-risk keywords
     for word in high_risk_keywords:
-        if word.lower() in text:
+        if word.lower() in text_lower:
             high_keyword_count += 1
 
 # Count normal keywords
     for word in normal_keywords:
-        if word.lower() in text:
+        if word.lower() in text_lower:
             normal_keyword_count += 1
 
 # Flag
@@ -863,7 +906,7 @@ def analyze_message(message):
 
 # Pattern detection
     for pattern in scam_patterns:
-        if pattern in text:
+        if pattern in text_lower:
             pattern_flag = True
             score += 18
             add_reason("Matched known scam pattern: " + pattern)
@@ -874,12 +917,12 @@ def analyze_message(message):
 
     if not pattern_flag:
         for pattern in scam_patterns:
-            similarity = jaccard_similarity(text, pattern)
+            similarity = jaccard_similarity(text_lower, pattern)
             if similarity > 0.5:
                 similarity_flag = True   # ADD THIS
                 
                 score += 12
-                add_reason("Message similar to scam pattern: " + pattern)
+                add_reason("Message similar to scam pattern(jaccard similarity): " + pattern)
                 break
 
 # Final message scoring (ONLY if no pattern found)
@@ -926,31 +969,65 @@ def analyze_message(message):
 
 
 
-    # URL extraction
-    # Unicode-aware URL extraction
-    urls = re.findall(
-        r'(https?://[^\s]+|(?:[\w\-]+\.)+[\w\-]{2,})',
-        text,
-        re.UNICODE
+    # ================= URL / DOMAIN EXTRACTION =================
+
+    url_pattern = re.compile(
+        r'((?:https?://|www\.)[^\s<>"\'()]+|(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})',
+        re.IGNORECASE
     )
-    # to remove duplicate
-    urls = list(set(urls))    
+
+    # Extract URLs from ORIGINAL message
+    raw_urls = url_pattern.findall(message)
+
+    urls = []
+
+    for u in raw_urls:
+
+        cleaned = u.strip(".,;:!?)]}\"'")
+
+        # Add protocol if missing
+        if not cleaned.startswith(("http://", "https://")):
+            cleaned = "http://" + cleaned
+
+        urls.append(cleaned)
+
+    # Remove duplicates
+    urls = list(set(urls))
+
+    print("[DEBUG] Extracted URLs:", urls)    
+
+
+
+
+
+
+
+    
+
+
+
+
+
 
 
 
 
     # ----------------------------
-# FILTER INVALID DOMAINS (FIX)
+# CLEAN EXTRACTED URLS
 # ----------------------------
 
     valid_urls = []
 
     for u in urls:
-    # Only keep URLs with real domain-like structure
-        if "." in u and not u.endswith((".py", ".txt", ".exe", ".jpg", ".png")):
-            valid_urls.append(u)
 
-    urls = valid_urls
+        # Remove trailing punctuation
+        cleaned = u.strip(".,;:!?)]}\"'")
+
+        # Keep only real URLs
+        if cleaned.startswith(("http://", "https://")):
+            valid_urls.append(cleaned)
+
+    urls = list(set(valid_urls))
     print("[DEBUG] Extracted URLs:", urls)
 
 
@@ -970,11 +1047,19 @@ def analyze_message(message):
 # ----------------------------
 
 # Extract visible domains from text
-    visible_domains = re.findall(
-        r'(?:[\w\-]+\.)+[\w\-]{2,}',
-        text,
-        re.UNICODE
-    )
+    visible_domains = []
+
+    for u in urls:
+        try:
+            extracted = tldextract.extract(u)
+
+            if extracted.domain and extracted.suffix:
+                visible_domains.append(
+                    extracted.domain + "." + extracted.suffix
+                )
+
+        except:
+            pass
     print("[DEBUG] Visible domains:", visible_domains)
 
 
@@ -1005,10 +1090,23 @@ def analyze_message(message):
     for url in urls:
         ip = None
 
+        brand_signals = 0
+        entropy_detected = False
 
-        decoded_url = unquote(url)
-        # if url redirected
-        final_url, redirect_count = resolve_final_url(decoded_url)
+
+        # Keep original URL for APIs
+        original_url = url
+        # Skip redirects for plain domains entered by user
+        if "/" not in original_url.replace("http://", "").replace("https://", ""):
+            final_url = original_url
+            redirect_count = 0
+        else:
+            final_url, redirect_count = resolve_final_url(original_url)
+        
+        # Normalized version for database matching
+        normalized_url = normalize_url(final_url)
+        print("[DEBUG] Original URL:", original_url)
+        print("[DEBUG] Normalized URL:", normalized_url)
 
 
 
@@ -1182,7 +1280,16 @@ def analyze_message(message):
 
 
 
-        domain_name = domain + "." + suffix
+        # ----------------------------
+# SAFE DOMAIN RECONSTRUCTION
+# ----------------------------
+
+        if suffix:
+            domain_name = domain + "." + suffix
+        else:
+            # Fallback for unknown/fake TLDs
+            parsed = final_url.replace("http://", "").replace("https://", "")
+            domain_name = parsed.split("/")[0]
 
 
 
@@ -1259,29 +1366,34 @@ def analyze_message(message):
 
         
         # ----------------------------
-# SUSPICIOUS TLD DETECTION (FIXED)
+# SAFE TLD EXTRACTION
 # ----------------------------
 
-        tld = suffix.lower()
+        if not suffix:
+            parts = domain_name.split(".")
+            tld = parts[-1] if len(parts) > 1 else "unknown"
+        else:
+            tld = suffix.lower()
 
-        if any(tld.endswith(bad) for bad in suspicious_tlds):
-            structure_score += 15   # moved to structure layer
-            add_reason(f"This domain extension is commonly used in phishing attack domain (.{tld})")
+# ----------------------------
+# SUSPICIOUS / UNKNOWN TLD DETECTION
+# ----------------------------
 
+        if tld in suspicious_tlds:
 
+            structure_score += 15
 
-        brand_signals = 0
+            add_reason(
+                f"This domain extension is commonly used in phishing attacks (.{tld})"
+            )
 
-        entropy_detected = False
+        elif tld not in trusted_tlds:
 
+            weak_score += 5
 
-
-
-
-        # Detect whether domain already contains brand-related patterns
-        brand_context_detected = any(
-            brand in domain_name for brand in target_brands
-        )
+            add_reason(
+                f"This uncommon domain extension may require extra caution (.{tld})"
+            )   
 
 
 
@@ -1436,7 +1548,7 @@ def analyze_message(message):
 
 
 # Domain change detection
-        original_domain = tldextract.extract(decoded_url).registered_domain
+        original_domain = tldextract.extract(original_url).registered_domain
         final_domain = tldextract.extract(final_url).registered_domain
 
         if original_domain != final_domain:
@@ -1725,7 +1837,7 @@ def analyze_message(message):
             add_reason("URL found in PhishTank phishing database")
 
         # URLhaus (CSV ONLY)
-        if clean_url.rstrip("/") in urlhaus_db:
+        if normalized_url in urlhaus_db:
             score += 100
             add_reason("URL found in URLhaus malware database")
 
@@ -1738,10 +1850,12 @@ def analyze_message(message):
 
 
 # Extract only domain
-        domain_only = clean_url.split("/")[0]
+        domain_only = normalize_url(domain_name)
 
-# Check multiple formats
-        if (clean_url in openphish_db or domain_only in openphish_db):
+        if (
+            normalized_url in openphish_db
+            or domain_only in openphish_db
+        ):
             score += 100
             add_reason("URL found in OpenPhish phishing database")
 
@@ -1772,12 +1886,18 @@ def analyze_message(message):
 
 
         # ThreatFox API (only if not found in DB)
-        if score >= 30:
-            if domain_name in threatfox_db or final_url in threatfox_db:
-                score += 100
-                add_reason("Found in ThreatFox database")
-                score = 100
-                break
+        
+        normalized_final_url = normalized_url
+        normalized_domain = normalize_url(domain_name)
+
+        if (
+            normalized_final_url in threatfox_db
+            or normalized_domain in threatfox_db
+        ):
+            score += 100
+            add_reason("Found in ThreatFox database")
+            score = 100
+            break
 
 
 
@@ -1817,7 +1937,7 @@ def analyze_message(message):
 # DOMAIN AGE DETECTION (SMART)
 # ----------------------------
         if score >= 30:
-            age = get_domain_age(domain_name)
+            age = get_domain_age(visible_domains)
 
             if age is not None:
 
